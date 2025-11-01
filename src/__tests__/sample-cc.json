@@ -1,0 +1,32 @@
+{
+  "daily": [
+    {
+      "date": "2025-01-01",
+      "inputTokens": 120,
+      "outputTokens": 240,
+      "cacheCreationTokens": 30,
+      "cacheReadTokens": 10,
+      "totalTokens": 400,
+      "totalCost": 4.2,
+      "modelsUsed": ["claude-sonnet-4-5-20250929"],
+      "modelBreakdowns": [
+        {
+          "modelName": "claude-sonnet-4-5-20250929",
+          "inputTokens": 120,
+          "outputTokens": 240,
+          "cacheCreationTokens": 30,
+          "cacheReadTokens": 10,
+          "cost": 4.2
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "inputTokens": 120,
+    "outputTokens": 240,
+    "cacheCreationTokens": 30,
+    "cacheReadTokens": 10,
+    "totalTokens": 400,
+    "totalCost": 4.2
+  }
+}
