@@ -222,7 +222,12 @@ export const Dashboard = ({
     return () => clearInterval(timer);
   }, [autoRefresh, hasActiveLayout, refreshInterval, handleRefresh]);
 
-  const hasUsage = summary.messageCount > 0;
+  const hasUsage =
+    summary.messageCount > 0 ||
+    summary.totals.totalCost > 0 ||
+    summary.totals.totalTokens > 0 ||
+    summary.providerRows.length > 0 ||
+    summary.modelRows.length > 0;
   const isDailyPeriod = currentPeriod === 'daily';
   const miniTableGap = isWideLayout ? 2 : 1;
   const quickStatsGap = isWideLayout ? 2 : 1;

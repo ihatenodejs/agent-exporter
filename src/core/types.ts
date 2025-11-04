@@ -76,13 +76,34 @@ export interface CCUsageExport {
   };
 }
 
+export interface UsageEntry {
+  date: string;
+  provider: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  reasoningTokens: number;
+  cacheCreationTokens: number;
+  cacheReadTokens: number;
+  totalCost: number;
+  entryCount?: number; // Number of messages aggregated into the entry
+}
+
 export type DataType = 'messages' | 'usage entries';
 
-export interface ProviderAdapter {
+export interface MessagesProviderAdapter {
   name: string;
-  dataType: DataType;
+  dataType: 'messages';
   fetchMessages(): Promise<UnifiedMessage[]>;
 }
+
+export interface UsageProviderAdapter {
+  name: string;
+  dataType: 'usage entries';
+  fetchUsageEntries(): Promise<UsageEntry[]>;
+}
+
+export type ProviderAdapter = MessagesProviderAdapter | UsageProviderAdapter;
 
 export interface ExportOptions {
   startDate?: string;

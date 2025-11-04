@@ -8,10 +8,10 @@ import {calculateCost} from '../core/pricing';
 import {
   MessageSchema,
   type UnifiedMessage,
-  type ProviderAdapter,
+  type MessagesProviderAdapter,
 } from '../core/types';
 
-export class OpenCodeAdapter implements ProviderAdapter {
+export class OpenCodeAdapter implements MessagesProviderAdapter {
   name = 'opencode' as const;
   dataType = 'messages' as const;
   private readonly messagesPath: string;

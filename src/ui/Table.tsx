@@ -1,5 +1,4 @@
 import {Box, Text} from 'ink';
-import {useMemo} from 'react';
 
 import type {ReactElement} from 'react';
 
@@ -22,7 +21,7 @@ const formatValue = (value: string | number): string =>
 export function Table<T extends TableRow>({
   data,
 }: TableProps<T>): ReactElement | null {
-  const preparedTable = useMemo(() => {
+  const preparedTable = (() => {
     if (data.length === 0) {
       return null;
     }
@@ -76,7 +75,7 @@ export function Table<T extends TableRow>({
       separator,
       dataRows,
     };
-  }, [data]);
+  })();
 
   if (!preparedTable) {
     return null;

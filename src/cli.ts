@@ -29,7 +29,7 @@ import {GeminiAdapter} from './providers/gemini';
 import {OpenCodeAdapter} from './providers/opencode';
 import {QwenAdapter} from './providers/qwen';
 
-import type {ProviderAdapter} from './core/types';
+import type {ProviderAdapter, UnifiedMessage} from './core/types';
 
 const program = new Command();
 
@@ -170,10 +170,44 @@ program
       let totalMessages = 0;
       for (const adapter of adapters) {
         console.log(`\nSyncing ${adapter.name}...`);
-        const messages = await adapter.fetchMessages();
+
+        let messages: UnifiedMessage[];
+        let itemCount: number;
+
+        if (adapter.dataType === 'usage entries') {
+          const usageEntries = await adapter.fetchUsageEntries();
+          messages = usageEntries.flatMap((entry) => {
+            const message: UnifiedMessage = {
+              id: `${adapter.name}-${entry.date}-${entry.model}`,
+              sessionId: `${adapter.name}-session-${entry.date}`,
+              provider: entry.provider,
+              model: entry.model,
+              inputTokens: entry.inputTokens,
+              outputTokens: entry.outputTokens,
+              reasoningTokens: entry.reasoningTokens,
+              cacheCreationTokens: entry.cacheCreationTokens,
+              cacheReadTokens: entry.cacheReadTokens,
+              cost: entry.totalCost,
+              timestamp: new Date(entry.date).getTime(),
+              date: entry.date,
+            };
+            return entry.entryCount
+              ? Array(entry.entryCount)
+                  .fill(message)
+                  .map((_, i) => ({
+                    ...message,
+                    id: `${message.id}-${i}`,
+                  }))
+              : [message];
+          });
+          itemCount = usageEntries.length;
+        } else {
+          messages = await adapter.fetchMessages();
+          itemCount = messages.length;
+        }
 
         console.log(
-          `Found ${messages.length} ${adapter.dataType} from ${adapter.name}`,
+          `Found ${itemCount} ${adapter.dataType} from ${adapter.name}`,
         );
 
         if (messages.length > 0) {

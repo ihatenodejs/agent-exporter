@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 import {z} from 'zod';
 
 import {calculateCost} from '../core/pricing';
-import {type UnifiedMessage, type ProviderAdapter} from '../core/types';
+import {type UnifiedMessage, type MessagesProviderAdapter} from '../core/types';
 
 const GeminiMessageSchema = z.object({
   id: z.string(),
@@ -33,7 +33,7 @@ const GeminiSessionSchema = z.object({
   messages: z.array(GeminiMessageSchema),
 });
 
-export class GeminiAdapter implements ProviderAdapter {
+export class GeminiAdapter implements MessagesProviderAdapter {
   name = 'gemini' as const;
   dataType = 'messages' as const;
   private readonly tmpPath: string;

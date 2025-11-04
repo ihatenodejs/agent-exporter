@@ -1,5 +1,4 @@
 import {afterEach, describe, expect, it, vi} from 'bun:test';
-import dayjs from 'dayjs';
 
 import {CodexAdapter} from '../codex';
 
@@ -68,7 +67,22 @@ describe('CodexAdapter', () => {
     });
 
     const adapter = new CodexAdapter();
-    const messages = await adapter.fetchMessages();
+    const usageEntries = await adapter.fetchUsageEntries();
+
+    const messages = usageEntries.flatMap((entry) => ({
+      id: `codex-${entry.date}-${entry.model}`,
+      sessionId: `codex-session-${entry.date}`,
+      provider: entry.provider,
+      model: entry.model,
+      inputTokens: entry.inputTokens,
+      outputTokens: entry.outputTokens,
+      reasoningTokens: entry.reasoningTokens,
+      cacheCreationTokens: entry.cacheCreationTokens,
+      cacheReadTokens: entry.cacheReadTokens,
+      cost: entry.totalCost,
+      timestamp: new Date(entry.date).getTime(),
+      date: entry.date,
+    }));
 
     expect(spawnSpy).toHaveBeenCalledWith(
       ['bunx', '@ccusage/codex@latest', '--json'],
@@ -77,11 +91,9 @@ describe('CodexAdapter', () => {
 
     expect(messages).toHaveLength(2);
 
-    const timestamp = dayjs('Jan 05, 2024', 'MMM DD, YYYY').valueOf();
-
     expect(messages[0]).toMatchObject({
-      id: 'codex-Jan 05, 2024-gpt-4.1-mini-0',
-      sessionId: 'codex-session-Jan 05, 2024',
+      id: 'codex-2024-01-05-gpt-4.1-mini',
+      sessionId: 'codex-session-2024-01-05',
       provider: 'codex',
       model: 'gpt-4.1-mini',
       inputTokens: 500,
@@ -90,13 +102,13 @@ describe('CodexAdapter', () => {
       cacheCreationTokens: 0,
       cacheReadTokens: 100,
       cost: 2,
-      date: dayjs(timestamp).format('YYYY-MM-DD'),
+      date: '2024-01-05',
     });
-    expect(messages[0].timestamp).toBe(timestamp);
+    expect(messages[0].timestamp).toBe(new Date('2024-01-05').getTime());
 
     expect(messages[1]).toMatchObject({
-      id: 'codex-Jan 05, 2024-gpt-4o-1',
-      sessionId: 'codex-session-Jan 05, 2024',
+      id: 'codex-2024-01-05-gpt-4o',
+      sessionId: 'codex-session-2024-01-05',
       provider: 'codex',
       model: 'gpt-4o',
       inputTokens: 500,
@@ -105,8 +117,9 @@ describe('CodexAdapter', () => {
       cacheCreationTokens: 0,
       cacheReadTokens: 100,
       cost: 2,
+      date: '2024-01-05',
     });
-    expect(messages[1].timestamp).toBe(timestamp);
+    expect(messages[1].timestamp).toBe(new Date('2024-01-05').getTime());
   });
 
   it('throws when the codex command exits with an error', () => {
@@ -123,7 +136,7 @@ describe('CodexAdapter', () => {
 
     const adapter = new CodexAdapter();
 
-    expect(adapter.fetchMessages()).rejects.toThrow(
+    expect(adapter.fetchUsageEntries()).rejects.toThrow(
       /codex command failed with exit code 1/,
     );
     expect(spawnSpy).toHaveBeenCalledTimes(1);

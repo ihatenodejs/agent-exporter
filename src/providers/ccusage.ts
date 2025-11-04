@@ -2,7 +2,11 @@ import dayjs from 'dayjs';
 import {z} from 'zod';
 
 import {calculateCost} from '../core/pricing';
-import {type UnifiedMessage, type ProviderAdapter} from '../core/types';
+import {
+  type UnifiedMessage,
+  type UsageProviderAdapter,
+  type UsageEntry,
+} from '../core/types';
 
 export const CCUsageModelBreakdownSchema = z.object({
   modelName: z.string(),
@@ -142,11 +146,68 @@ export const convertCcUsageExportToMessages = (
   return unifiedMessages;
 };
 
-export class CCUsageAdapter implements ProviderAdapter {
+export const convertCcUsageExportToUsageEntries = (
+  ccusageData: CCUsageExportData,
+): UsageEntry[] => {
+  const usageEntries: UsageEntry[] = [];
+
+  const dailyEntries: z.infer<typeof CCUsageDailySchema>[] = [];
+
+  if (ccusageData.daily) {
+    dailyEntries.push(...ccusageData.daily);
+  }
+
+  for (const [key, value] of Object.entries(ccusageData)) {
+    if (key === 'daily' || key === 'totals') {
+      continue;
+    }
+
+    const section = CCUsageSectionSchema.safeParse(value);
+    if (section.success && section.data.daily) {
+      dailyEntries.push(...section.data.daily);
+    }
+  }
+
+  for (const dailyEntry of dailyEntries) {
+    const breakdowns = dailyEntry.modelBreakdowns;
+    for (const breakdown of breakdowns) {
+      const provider = detectProviderFromModel(breakdown.modelName);
+
+      const cost =
+        breakdown.cost > 0
+          ? breakdown.cost
+          : calculateCost(
+              breakdown.modelName,
+              breakdown.inputTokens,
+              breakdown.outputTokens,
+              breakdown.cacheCreationTokens,
+              breakdown.cacheReadTokens,
+              provider,
+            );
+
+      usageEntries.push({
+        date: dailyEntry.date,
+        provider,
+        model: breakdown.modelName,
+        inputTokens: breakdown.inputTokens,
+        outputTokens: breakdown.outputTokens,
+        reasoningTokens: 0,
+        cacheCreationTokens: breakdown.cacheCreationTokens,
+        cacheReadTokens: breakdown.cacheReadTokens,
+        totalCost: cost,
+        entryCount: 1,
+      });
+    }
+  }
+
+  return usageEntries;
+};
+
+export class CCUsageAdapter implements UsageProviderAdapter {
   name = 'ccusage' as const;
   dataType = 'usage entries' as const;
 
-  async fetchMessages(): Promise<UnifiedMessage[]> {
+  async fetchUsageEntries(): Promise<UsageEntry[]> {
     try {
       const proc = Bun.spawn(['ccusage', 'daily', '--json'], {
         stdout: 'pipe',
@@ -171,7 +232,7 @@ export class CCUsageAdapter implements ProviderAdapter {
         return [];
       }
 
-      return convertCcUsageExportToMessages(parsed.data);
+      return convertCcUsageExportToUsageEntries(parsed.data);
     } catch (error: unknown) {
       const normalizedError =
         error instanceof Error ? error : new Error(String(error));

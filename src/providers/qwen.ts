@@ -6,7 +6,7 @@ import dayjs from 'dayjs';
 import {z} from 'zod';
 
 import {calculateCost} from '../core/pricing';
-import {type UnifiedMessage, type ProviderAdapter} from '../core/types';
+import {type UnifiedMessage, type MessagesProviderAdapter} from '../core/types';
 
 const QwenMessageSchema = z.object({
   id: z.string(),
@@ -33,7 +33,7 @@ const QwenSessionSchema = z.object({
   messages: z.array(QwenMessageSchema),
 });
 
-export class QwenAdapter implements ProviderAdapter {
+export class QwenAdapter implements MessagesProviderAdapter {
   name = 'qwen' as const;
   dataType = 'messages' as const;
   private readonly tmpPath: string;
