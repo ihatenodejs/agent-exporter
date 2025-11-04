@@ -142,7 +142,7 @@ describe('CodexAdapter', () => {
     } catch (error) {
       errorThrown = true;
       expect((error as Error).message).toMatch(
-        /codex command failed with exit code 1/,
+        /bunx command failed with exit code 1/,
       );
     }
 
