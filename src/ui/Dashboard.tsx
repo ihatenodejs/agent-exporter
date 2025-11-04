@@ -90,11 +90,16 @@ interface DashboardProps {
   readonly summary: UsageSummary;
   readonly rangeDescription: string;
   readonly useRawLabels?: boolean;
-  readonly onRefresh: () => void;
+  readonly onRefresh: (
+    isManualRefresh?: boolean,
+    refreshIntervalSeconds?: number,
+  ) => void;
   readonly onPeriodChange?: (period: TimePeriod) => void;
   readonly currentPeriod?: TimePeriod;
   readonly onExit: () => void;
   readonly lastUpdated: Date;
+  readonly isSyncing?: boolean;
+  readonly isLoading?: boolean;
 }
 
 export const Dashboard = ({
@@ -106,6 +111,8 @@ export const Dashboard = ({
   currentPeriod = 'monthly',
   onExit,
   lastUpdated,
+  isSyncing = false,
+  isLoading = false,
 }: DashboardProps): ReactElement => {
   const {exit} = useApp();
   const [autoRefresh, setAutoRefresh] = useState(true);
@@ -137,10 +144,13 @@ export const Dashboard = ({
   const isWideLayout = activeLayoutInfo?.key === '3x1';
   const isGridLayout = activeLayoutInfo?.key === '2x2';
 
-  const handleRefresh = useCallback(() => {
-    onRefresh();
-    setTimeUntilRefresh(refreshInterval);
-  }, [onRefresh, refreshInterval]);
+  const handleRefresh = useCallback(
+    (isManualRefresh = false) => {
+      onRefresh(isManualRefresh, refreshInterval);
+      setTimeUntilRefresh(refreshInterval);
+    },
+    [onRefresh, refreshInterval],
+  );
 
   const handlePeriodToggle = useCallback(() => {
     if (!onPeriodChange) return;
@@ -167,9 +177,9 @@ export const Dashboard = ({
     }
 
     if (key.return) {
-      handleRefresh();
+      handleRefresh(true);
     } else if (input === 'r') {
-      handleRefresh();
+      handleRefresh(true);
     } else if (input === 'a') {
       setAutoRefresh((prev) => !prev);
     } else if (input === '+') {
@@ -255,7 +265,11 @@ export const Dashboard = ({
         >
           Agent Exporter
         </Text>
-        <Text color="gray">Updated {lastUpdated.toLocaleTimeString()}</Text>
+        <Text color="gray">
+          Updated {lastUpdated.toLocaleTimeString()}
+          {isSyncing && ' • Syncing...'}
+          {isLoading && ' • Loading...'}
+        </Text>
       </Box>
       <Box
         flexDirection="row"

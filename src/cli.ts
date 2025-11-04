@@ -512,6 +512,8 @@ async function displayDashboard(
     let currentPeriod: TimePeriod = 'monthly';
     let currentStartDate = startDate;
     let currentEndDate = endDate;
+    let isSyncing = false;
+    let lastSyncTime = 0;
 
     const updatePeriod = (period: TimePeriod): void => {
       currentPeriod = period;
@@ -524,13 +526,93 @@ async function displayDashboard(
       return getDateRangeDescription(currentStartDate, currentEndDate);
     };
 
-    const fetchDashboardData = (): {
+    const syncFromProviders = async (
+      refreshIntervalSeconds = 30,
+      isManualRefresh = false,
+    ): Promise<void> => {
+      if (isSyncing) {
+        // Don't sync if already syncing
+        return;
+      }
+
+      // Only rate limit automatic refreshes, manual refreshes always sync
+      if (
+        !isManualRefresh &&
+        Date.now() - lastSyncTime < refreshIntervalSeconds * 1000
+      ) {
+        // Don't sync if synced within the refresh interval
+        return;
+      }
+
+      isSyncing = true;
+      try {
+        const adapters = buildAdapters('all');
+
+        for (const adapter of adapters) {
+          let messages: UnifiedMessage[];
+
+          if (adapter.dataType === 'usage entries') {
+            const usageEntries = await adapter.fetchUsageEntries();
+            messages = usageEntries.flatMap((entry) => {
+              const message: UnifiedMessage = {
+                id: `${adapter.name}-${entry.date}-${entry.model}`,
+                sessionId: `${adapter.name}-session-${entry.date}`,
+                provider: entry.provider,
+                model: entry.model,
+                inputTokens: entry.inputTokens,
+                outputTokens: entry.outputTokens,
+                reasoningTokens: entry.reasoningTokens,
+                cacheCreationTokens: entry.cacheCreationTokens,
+                cacheReadTokens: entry.cacheReadTokens,
+                cost: entry.totalCost,
+                timestamp: new Date(entry.date).getTime(),
+                date: entry.date,
+              };
+              return entry.entryCount
+                ? Array(entry.entryCount)
+                    .fill(message)
+                    .map((_, i) => ({
+                      ...message,
+                      id: `${message.id}-${i}`,
+                    }))
+                : [message];
+            });
+          } else {
+            messages = await adapter.fetchMessages();
+          }
+
+          if (messages.length > 0) {
+            if (!dbManager) throw new Error('Database manager not initialized');
+            dbManager.insertMessages(messages);
+            const lastMessage = messages[messages.length - 1];
+            dbManager.updateSyncState(adapter.name, Date.now(), lastMessage.id);
+          }
+        }
+
+        if (!dbManager) throw new Error('Database manager not initialized');
+        dbManager.recalculateCosts();
+        lastSyncTime = Date.now();
+      } catch (error) {
+        logError('Background sync failed', error);
+      } finally {
+        isSyncing = false;
+      }
+    };
+
+    const fetchDashboardData = async (
+      isManualRefresh = false,
+      refreshIntervalSeconds = 30,
+    ): Promise<{
       summary: UsageSummary;
       lastUpdated: Date;
-    } => {
+      isSyncing: boolean;
+    }> => {
       if (!dbManager) {
         throw new Error('Database manager not initialized');
       }
+
+      await syncFromProviders(refreshIntervalSeconds, isManualRefresh);
+
       const messages = dbManager.getMessagesByDateRange(
         currentStartDate,
         currentEndDate,
@@ -545,7 +627,7 @@ async function displayDashboard(
         currentEndDate,
       );
       const summary = computeUsageSummary(messages, normalizedDailyUsage);
-      return {summary, lastUpdated: new Date()};
+      return {summary, lastUpdated: new Date(), isSyncing};
     };
 
     const {DashboardContainer} = await import('./ui/DashboardContainer');

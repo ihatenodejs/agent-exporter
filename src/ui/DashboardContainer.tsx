@@ -1,4 +1,5 @@
-import {useState, useEffect, useCallback} from 'react';
+import {Text} from 'ink';
+import {useState, useEffect, useCallback, useRef} from 'react';
 import React from 'react';
 
 import {Dashboard} from './Dashboard';
@@ -10,7 +11,14 @@ import type {ReactElement} from 'react';
 interface DashboardContainerProps {
   readonly rangeDescription: string;
   readonly useRawLabels?: boolean;
-  readonly fetchData: () => {summary: UsageSummary; lastUpdated: Date};
+  readonly fetchData: (
+    isManualRefresh?: boolean,
+    refreshIntervalSeconds?: number,
+  ) => Promise<{
+    summary: UsageSummary;
+    lastUpdated: Date;
+    isSyncing: boolean;
+  }>;
   readonly onPeriodChange?: (period: TimePeriod) => void;
   readonly currentPeriod?: TimePeriod;
   readonly onExit: () => void;
@@ -24,16 +32,33 @@ export const DashboardContainer = ({
   currentPeriod = 'monthly',
   onExit,
 }: DashboardContainerProps): ReactElement => {
-  const [data, setData] = useState(() => fetchData());
+  const [data, setData] = useState<{
+    summary: UsageSummary;
+    lastUpdated: Date;
+    isSyncing: boolean;
+  } | null>(null);
   const [currentRangeDescription, setCurrentRangeDescription] =
     useState(rangeDescription);
   const [internalCurrentPeriod, setInternalCurrentPeriod] =
     useState(currentPeriod);
+  const [isLoading, setIsLoading] = useState(true);
+  const hasInitialized = useRef(false);
 
-  const handleRefresh = useCallback(() => {
-    const newData = fetchData();
-    setData(newData);
-  }, [fetchData]);
+  const handleRefresh = useCallback(
+    async (isManualRefresh = false, refreshIntervalSeconds = 30) => {
+      setIsLoading(true);
+      try {
+        const newData = await fetchData(
+          isManualRefresh,
+          refreshIntervalSeconds,
+        );
+        setData(newData);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [fetchData],
+  );
 
   const handlePeriodChange = useCallback(
     (period: TimePeriod) => {
@@ -44,8 +69,7 @@ export const DashboardContainer = ({
       }
 
       setTimeout(async () => {
-        const newData = fetchData();
-        setData(newData);
+        await handleRefresh();
         const {getDateRangeForPeriod, getDateRangeDescription} = await import(
           '../core/date-utils'
         );
@@ -55,16 +79,31 @@ export const DashboardContainer = ({
         );
       }, 0);
     },
-    [onPeriodChange, fetchData],
+    [onPeriodChange, handleRefresh],
   );
 
   useEffect(() => {
+    if (!hasInitialized.current) {
+      hasInitialized.current = true;
+      handleRefresh().catch(() => {
+        // Ignore errors during initial load
+      });
+    }
+  }, []);
+
+  useEffect(() => {
     const interval = setInterval(() => {
-      handleRefresh();
+      handleRefresh().catch(() => {
+        // Ignore errors during auto-refresh
+      });
     }, 30000);
 
     return () => clearInterval(interval);
-  }, [handleRefresh]);
+  }, []);
+
+  if (!data) {
+    return React.createElement(Text, {}, 'Loading...');
+  }
 
   return React.createElement(Dashboard, {
     summary: data.summary,
@@ -75,5 +114,7 @@ export const DashboardContainer = ({
     currentPeriod: internalCurrentPeriod,
     onExit,
     lastUpdated: data.lastUpdated,
+    isSyncing: data.isSyncing,
+    isLoading,
   });
 };
