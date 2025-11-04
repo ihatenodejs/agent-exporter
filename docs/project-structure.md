@@ -1,6 +1,6 @@
 # Project Structure
 
-```
+```plaintext
 agent-exporter/
 ├── src/
 │   ├── cli.ts                     # CLI entry point

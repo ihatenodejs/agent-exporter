@@ -163,6 +163,8 @@ export const StatsApp = ({
     : zeroUsageProviderRows.length;
   const modelsHidden = showHidden ? 0 : hiddenModelRows.length;
 
+  const isDailyPeriod = periodLabel === 'Today';
+
   const totalsTableData: TotalsTableRow[] = [
     {
       Metric: chalk.bold('Input Tokens'),
@@ -184,18 +186,26 @@ export const StatsApp = ({
       Metric: chalk.bold('Total Tokens'),
       Value: formatTokens(summary.totals.totalTokens),
     },
-    {
-      Metric: chalk.bold('Average Daily Tokens'),
-      Value: formatTokensDecimal(summary.averageDailyTokens),
-    },
+    ...(isDailyPeriod
+      ? []
+      : [
+          {
+            Metric: chalk.bold('Average Daily Tokens'),
+            Value: formatTokensDecimal(summary.averageDailyTokens),
+          },
+        ]),
     {
       Metric: chalk.bold('Total Cost'),
       Value: formatCurrency(summary.totals.totalCost),
     },
-    {
-      Metric: chalk.bold('Average Daily Cost'),
-      Value: formatCurrency(summary.averageDailyCost),
-    },
+    ...(isDailyPeriod
+      ? []
+      : [
+          {
+            Metric: chalk.bold('Average Daily Cost'),
+            Value: formatCurrency(summary.averageDailyCost),
+          },
+        ]),
   ];
 
   return (
@@ -232,13 +242,17 @@ export const StatsApp = ({
           >
             {`Total Cost: ${currencyFormatter.format(summary.totals.totalCost)}`}
           </Text>
-          <Text> </Text>
-          <Text
-            color="yellowBright"
-            bold
-          >
-            {`Avg Daily Cost: ${currencyFormatter.format(summary.averageDailyCost)}`}
-          </Text>
+          {!isDailyPeriod && (
+            <>
+              <Text> </Text>
+              <Text
+                color="yellowBright"
+                bold
+              >
+                {`Avg Daily Cost: ${currencyFormatter.format(summary.averageDailyCost)}`}
+              </Text>
+            </>
+          )}
         </Box>
         <Box>
           <Text
@@ -247,13 +261,17 @@ export const StatsApp = ({
           >
             {`Total Tokens: ${integerFormatter.format(summary.totals.totalTokens)}`}
           </Text>
-          <Text> </Text>
-          <Text
-            color="magenta"
-            bold
-          >
-            {`Avg Daily Tokens: ${decimalFormatter.format(summary.averageDailyTokens)}`}
-          </Text>
+          {!isDailyPeriod && (
+            <>
+              <Text> </Text>
+              <Text
+                color="magenta"
+                bold
+              >
+                {`Avg Daily Tokens: ${decimalFormatter.format(summary.averageDailyTokens)}`}
+              </Text>
+            </>
+          )}
         </Box>
       </Box>
 

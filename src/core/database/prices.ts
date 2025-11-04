@@ -26,25 +26,26 @@ export interface FallbackModelPrice {
  * Fallback pricing database
  *
  * Add models here that are not available in genai-prices or have custom pricing.
- * This is particularly useful for:
- * - New models not yet in genai-prices
- * - Custom/local models
- * - Free tier models
- * - Enterprise pricing agreements
  */
 export const FALLBACK_PRICES: FallbackModelPrice[] = [
   // GLM Models (ZhipuAI)
   {
+    model: 'glm-4.6',
+    inputPer1M: 0.6,
+    outputPer1M: 2.2,
+    cacheReadPer1M: 0.11,
+  },
+  {
     model: 'glm-4.5',
     inputPer1M: 0.35,
     outputPer1M: 1.55,
-    notes: 'Free tier or custom pricing',
+    cacheReadPer1M: 0.11,
   },
   {
     model: 'glm-4.5-air',
-    inputPer1M: 0.13,
-    outputPer1M: 0.85,
-    notes: 'Free tier or custom pricing',
+    inputPer1M: 0.2,
+    outputPer1M: 1.1,
+    cacheReadPer1M: 0.03,
   },
 
   // Qwen Models (Alibaba Cloud)
@@ -63,35 +64,23 @@ export const FALLBACK_PRICES: FallbackModelPrice[] = [
   {
     model: 'gemini-2.5-pro',
     inputPer1M: 1.25,
-    outputPer1M: 5.0,
-    cacheReadPer1M: 0.3125,
-    notes: 'Gemini 2.5 Pro with extended thinking',
+    outputPer1M: 10,
+    cacheReadPer1M: 0.125,
+    cacheWritePer1M: 1.625,
   },
   {
-    model: 'gemini-2.0-flash-exp',
-    inputPer1M: 0.0,
-    outputPer1M: 0.0,
-    notes: 'Gemini 2.0 Flash Experimental - Free tier',
+    model: 'gemini-2.5-flash',
+    inputPer1M: 0.3,
+    outputPer1M: 2.5,
+    cacheReadPer1M: 0.03,
+    cacheWritePer1M: 0.3833,
   },
   {
-    model: 'gemini-2.0-flash-thinking-exp',
-    inputPer1M: 0.0,
-    outputPer1M: 0.0,
-    notes: 'Gemini 2.0 Flash Thinking Experimental - Free tier',
-  },
-  {
-    model: 'gemini-1.5-pro',
+    model: 'gemini-2.5-pro-preview-06-05',
     inputPer1M: 1.25,
-    outputPer1M: 5.0,
-    cacheReadPer1M: 0.3125,
-    notes: 'Gemini 1.5 Pro',
-  },
-  {
-    model: 'gemini-1.5-flash',
-    inputPer1M: 0.075,
-    outputPer1M: 0.3,
-    cacheReadPer1M: 0.01875,
-    notes: 'Gemini 1.5 Flash',
+    outputPer1M: 10,
+    cacheReadPer1M: 0.125,
+    cacheWritePer1M: 1.625,
   },
 ];
 

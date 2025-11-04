@@ -1,11 +1,16 @@
 # Agent Exporter
 
-Welcome to the documentation for Agent Exporter! Here you will find guides to help you with installing and using Agent Explorer.
+Welcome to the documentation for Agent Exporter! Here you will find guides to help you with installing and using Agent Exporter.
 
 ## Get Started
 
 - [Installation](./installation.md)
 - [Usage](./usage.md)
+
+## Features
+
+- [Live Dashboard](./usage.md#interactive-live-dashboard)
+- [Data Ingestion](./usage.md#ingest-usage-data-from-ccusage-export)
 
 ## Configuration
 

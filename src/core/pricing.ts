@@ -68,6 +68,10 @@ export function calculateCost(
   cacheReadTokens: number,
   providerId?: string,
 ): number {
+  if (!model || model.trim() === '') {
+    return 0;
+  }
+
   const usage = {
     input_tokens: inputTokens,
     output_tokens: outputTokens,
@@ -115,6 +119,17 @@ export function calculateDetailedCost(
   cacheReadTokens: number,
   providerId?: string,
 ): CalculatedCost {
+  if (!model || model.trim() === '') {
+    return {
+      inputCost: 0,
+      outputCost: 0,
+      cacheWriteCost: 0,
+      cacheReadCost: 0,
+      totalCost: 0,
+      source: 'none',
+    };
+  }
+
   const usage = {
     input_tokens: inputTokens,
     output_tokens: outputTokens,
@@ -184,6 +199,10 @@ export function getModelPricing(
   model: string,
   providerId?: string,
 ): ModelPricing | null {
+  if (!model || model.trim() === '') {
+    return null;
+  }
+
   const testUsage = {
     input_tokens: 1_000_000,
     output_tokens: 1_000_000,

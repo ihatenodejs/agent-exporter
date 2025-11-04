@@ -31,6 +31,7 @@ jobs:
           bunx eslint .
           bun run format:check
           bunx tsc --noEmit
+          bun test
 
       - name: Build
         run: bun run build

@@ -14,7 +14,7 @@ import {
   isValidDateString,
   type TimePeriod,
 } from './core/date-utils';
-import {computeUsageSummary} from './core/statistics';
+import {computeUsageSummary, type UsageSummary} from './core/statistics';
 import {DatabaseManager} from './database/manager';
 import {initializeDatabase} from './database/schema';
 import {CCUsageExporter} from './exporters/ccusage';
@@ -368,7 +368,6 @@ program
         startDate = range.start;
         endDate = range.end;
       } else if (startDate && endDate) {
-        // Validate custom date range
         if (!isValidDateString(startDate)) {
           console.error(
             `Invalid start date: ${startDate}. Use YYYY-MM-DD format.`,
@@ -386,7 +385,6 @@ program
       const exporter = new JSONExporter(dbManager);
 
       if (options.output) {
-        // Output to file
         const outputPath = await exporter.export({
           startDate,
           endDate,
@@ -420,16 +418,6 @@ async function displayStats(
   showHidden = false,
 ): Promise<void> {
   let dbManager: DatabaseManager | undefined;
-  const originalDev = process.env.DEV;
-  const enableDevtools =
-    process.env.AGENT_EXPORTER_DEVTOOLS === 'true' ||
-    process.env.AGENT_EXPORTER_DEVTOOLS === '1';
-
-  if (enableDevtools) {
-    process.env.DEV = 'true';
-  } else {
-    process.env.DEV = 'false';
-  }
 
   try {
     const db = initializeDatabase(dbPath);
@@ -463,15 +451,112 @@ async function displayStats(
     process.exit(1);
   } finally {
     dbManager?.close();
-    if (originalDev === undefined) {
-      delete process.env.DEV;
-    } else {
-      process.env.DEV = originalDev;
-    }
   }
 }
 
-// Daily stats
+/**
+ * Display interactive dashboard with real-time updates
+ */
+async function displayDashboard(
+  startDate: string,
+  endDate: string,
+  dbPath: string,
+  useRawLabels = false,
+): Promise<void> {
+  let dbManager: DatabaseManager | undefined;
+
+  if (process.stdout.isTTY) {
+    process.stdout.write('\x1B[2J\x1B[3J\x1B[H');
+  } else {
+    console.clear();
+  }
+
+  try {
+    const db = initializeDatabase(dbPath);
+    dbManager = new DatabaseManager(db);
+
+    let currentPeriod: TimePeriod = 'monthly';
+    let currentStartDate = startDate;
+    let currentEndDate = endDate;
+
+    const updatePeriod = (period: TimePeriod): void => {
+      currentPeriod = period;
+      const range = getDateRangeForPeriod(period);
+      currentStartDate = range.start;
+      currentEndDate = range.end;
+    };
+
+    const getCurrentRangeDescription = (): string => {
+      return getDateRangeDescription(currentStartDate, currentEndDate);
+    };
+
+    const fetchDashboardData = (): {
+      summary: UsageSummary;
+      lastUpdated: Date;
+    } => {
+      if (!dbManager) {
+        throw new Error('Database manager not initialized');
+      }
+      const messages = dbManager.getMessagesByDateRange(
+        currentStartDate,
+        currentEndDate,
+      );
+      const dailyUsage = dbManager.getDailyUsage(
+        currentStartDate,
+        currentEndDate,
+      );
+      const normalizedDailyUsage = fillMissingDates(
+        dailyUsage,
+        currentStartDate,
+        currentEndDate,
+      );
+      const summary = computeUsageSummary(messages, normalizedDailyUsage);
+      return {summary, lastUpdated: new Date()};
+    };
+
+    const {DashboardContainer} = await import('./ui/DashboardContainer');
+    const {render} = await import('ink');
+
+    const renderResult = render(
+      React.createElement(DashboardContainer, {
+        rangeDescription: getCurrentRangeDescription(),
+        useRawLabels,
+        fetchData: fetchDashboardData,
+        onPeriodChange: updatePeriod,
+        currentPeriod,
+        onExit: () => {
+          // Clean up will happen in finally block
+        },
+      }),
+    );
+
+    await renderResult.waitUntilExit();
+  } catch (error: unknown) {
+    logError('Dashboard failed', error);
+    process.exit(1);
+  } finally {
+    dbManager?.close();
+  }
+}
+
+program
+  .command('live')
+  .description('Launch interactive live view with real-time updates')
+  .option('-d, --db <path>', 'Database path', DEFAULT_DB_PATH)
+  .option(
+    '--use-raw-labels',
+    'Display raw model identifiers instead of friendly labels',
+  )
+  .action(async (options: StatsCommandOptions): Promise<void> => {
+    const {start, end} = getDateRangeForPeriod('monthly');
+    await displayDashboard(
+      start,
+      end,
+      options.db,
+      Boolean(options.useRawLabels),
+    );
+  });
+
 program
   .command('daily')
   .description("Display today's usage statistics")
@@ -493,7 +578,6 @@ program
     );
   });
 
-// Weekly stats
 program
   .command('weekly')
   .description("Display this week's usage statistics")
@@ -515,7 +599,6 @@ program
     );
   });
 
-// Monthly stats
 program
   .command('monthly')
   .description("Display this month's usage statistics")
@@ -537,7 +620,6 @@ program
     );
   });
 
-// Yearly stats
 program
   .command('yearly')
   .description("Display this year's usage statistics")
@@ -559,7 +641,6 @@ program
     );
   });
 
-// Custom date range stats
 program
   .command('range')
   .description('Display usage statistics for a custom date range')

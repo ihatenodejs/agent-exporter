@@ -5,7 +5,7 @@ Agent Exporter uses a two-tier pricing system:
 1. **Primary: @pydantic/genai-prices** - Automatic pricing for hundreds of popular models
 2. **Fallback: Internal database** - Custom pricing for models not in genai-prices
 
-### Primary Pricing Source
+## Primary Pricing Source
 
 [@pydantic/genai-prices](https://github.com/pydantic/genai-prices) provides:
 
@@ -13,11 +13,11 @@ Agent Exporter uses a two-tier pricing system:
 - **Cache token support** - includes prompt caching costs for supported models
 - **No API key required** - pricing data is embedded in the package
 
-### Fallback Pricing Database
+## Fallback Pricing Database
 
 For models not found in genai-prices, the tool checks an internal fallback database in `src/core/database/prices.ts`.
 
-#### Adding Custom Prices
+### Adding Custom Prices
 
 Edit `src/core/database/prices.ts` to add your models:
 
@@ -36,7 +36,7 @@ export const FALLBACK_PRICES: FallbackModelPrice[] = [
 ];
 ```
 
-### Pricing Priority
+## Pricing Priority
 
 1. **genai-prices** - Checked first for all models
 2. **Fallback database** - Used if model not found in genai-prices
