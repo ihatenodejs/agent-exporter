@@ -1,4 +1,9 @@
-import {generateDateRange, generateCCUsageExport} from '../core/aggregator';
+import {
+  generateDateRange,
+  generateCCUsageExport,
+  createEmptyDailyUsage,
+  createEmptyModelBreakdown,
+} from '../core/aggregator';
 import {
   type ExportOptions,
   type DailyUsage,
@@ -49,17 +54,7 @@ export class JSONExporter {
       for (const msg of providerMessages) {
         let daily = dailyMap.get(msg.date);
         if (daily === undefined) {
-          daily = {
-            date: msg.date,
-            inputTokens: 0,
-            outputTokens: 0,
-            cacheCreationTokens: 0,
-            cacheReadTokens: 0,
-            totalTokens: 0,
-            totalCost: 0,
-            modelsUsed: [],
-            modelBreakdowns: [],
-          };
+          daily = createEmptyDailyUsage(msg.date);
           dailyMap.set(msg.date, daily);
         }
         daily.inputTokens += msg.inputTokens;
@@ -81,14 +76,7 @@ export class JSONExporter {
           (mb) => mb.modelName === msg.model,
         );
         if (modelBreakdown === undefined) {
-          modelBreakdown = {
-            modelName: msg.model,
-            inputTokens: 0,
-            outputTokens: 0,
-            cacheCreationTokens: 0,
-            cacheReadTokens: 0,
-            cost: 0,
-          };
+          modelBreakdown = createEmptyModelBreakdown(msg.model);
           daily.modelBreakdowns.push(modelBreakdown);
         }
 

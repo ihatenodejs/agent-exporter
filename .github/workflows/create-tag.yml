@@ -1,24 +1,23 @@
-name: Create GitHub Release
+name: Create Release Tag
 
 on:
   push:
-    tags:
-      - 'v*'
-  workflow_dispatch:
+    branches:
+      - main
 
 jobs:
-  release:
-    name: Create Release
+  create-tag:
     runs-on: ubuntu-latest
+    if: "!startsWith(github.event.head_commit.message, 'chore(release):')"
     permissions:
       contents: write
-      pull-requests: write
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -42,14 +41,14 @@ jobs:
       - name: Build
         run: bun run build
 
-      - name: Determine version and create release
+      - name: Determine version and create tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
 
           if git tag --list | grep -q "^v$VERSION$"; then
-            echo "Tag v$VERSION already exists, skipping release creation."
+            echo "Tag v$VERSION already exists, skipping tag creation."
             exit 0
           fi
 
@@ -57,9 +56,3 @@ jobs:
           git config --global user.email 'github-actions[bot]@users.noreply.github.com'
           git tag "v$VERSION"
           git push origin "v$VERSION"
-
-          gh release create "v$VERSION" \
-            --title "v$VERSION" \
-            --generate-notes \
-            --latest \
-            ./dist/agent-exporter

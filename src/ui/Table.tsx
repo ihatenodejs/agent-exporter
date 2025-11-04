@@ -21,52 +21,67 @@ const formatValue = (value: string | number): string =>
 export function Table<T extends TableRow>({
   data,
 }: TableProps<T>): ReactElement | null {
-  if (data.length === 0) {
+  const preparedTable = (() => {
+    if (data.length === 0) {
+      return null;
+    }
+
+    const columns = Object.keys(data[0]) as (keyof T)[];
+    const columnWidths = new Map<keyof T, number>();
+
+    for (const column of columns) {
+      const columnKey = column as string;
+      let maxWidth = columnKey.length;
+
+      for (const row of data) {
+        const formattedValue = formatValue(row[column]);
+        const cleanValue = stripAnsi(formattedValue);
+        maxWidth = Math.max(maxWidth, cleanValue.length);
+      }
+
+      columnWidths.set(column, maxWidth);
+    }
+
+    const headerRow = columns
+      .map((column) => {
+        const width = columnWidths.get(column) ?? 0;
+        const columnKey = column as string;
+        return columnKey.padEnd(width);
+      })
+      .join('  ');
+
+    const separator = columns
+      .map((column) => {
+        const width = columnWidths.get(column) ?? 0;
+        return '─'.repeat(width);
+      })
+      .join('  ');
+
+    const dataRows = data.map((row, index) => ({
+      key: `row-${index}`,
+      value: columns
+        .map((column) => {
+          const width = columnWidths.get(column) ?? 0;
+          const formattedValue = formatValue(row[column]);
+          const cleanValue = stripAnsi(formattedValue);
+          const padding = width - cleanValue.length;
+          return formattedValue + ' '.repeat(Math.max(0, padding));
+        })
+        .join('  '),
+    }));
+
+    return {
+      headerRow,
+      separator,
+      dataRows,
+    };
+  })();
+
+  if (!preparedTable) {
     return null;
   }
 
-  const columns = Object.keys(data[0]) as (keyof T)[];
-  const columnWidths = new Map<keyof T, number>();
-
-  for (const column of columns) {
-    const columnKey = column as string;
-    let maxWidth = columnKey.length;
-
-    for (const row of data) {
-      const formattedValue = formatValue(row[column]);
-      const cleanValue = stripAnsi(formattedValue);
-      maxWidth = Math.max(maxWidth, cleanValue.length);
-    }
-
-    columnWidths.set(column, maxWidth);
-  }
-
-  const headerRow = columns
-    .map((column) => {
-      const width = columnWidths.get(column) ?? 0;
-      const columnKey = column as string;
-      return columnKey.padEnd(width);
-    })
-    .join('  ');
-
-  const separator = columns
-    .map((column) => {
-      const width = columnWidths.get(column) ?? 0;
-      return '─'.repeat(width);
-    })
-    .join('  ');
-
-  const dataRows = data.map((row) =>
-    columns
-      .map((column) => {
-        const width = columnWidths.get(column) ?? 0;
-        const formattedValue = formatValue(row[column]);
-        const cleanValue = stripAnsi(formattedValue);
-        const padding = width - cleanValue.length;
-        return formattedValue + ' '.repeat(Math.max(0, padding));
-      })
-      .join('  '),
-  );
+  const {headerRow, separator, dataRows} = preparedTable;
 
   return (
     <Box flexDirection="column">
@@ -77,8 +92,8 @@ export function Table<T extends TableRow>({
         {headerRow}
       </Text>
       <Text dimColor>{separator}</Text>
-      {dataRows.map((row, index) => (
-        <Text key={index}>{row}</Text>
+      {dataRows.map((row) => (
+        <Text key={row.key}>{row.value}</Text>
       ))}
     </Box>
   );

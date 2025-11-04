@@ -2,7 +2,7 @@
 
 All commands can be run with `agent-exporter` after installation.
 
-### Sync Data from Providers
+## Sync Data from Providers
 
 Sync usage data from various AI agent providers to the local database:
 
@@ -29,7 +29,25 @@ agent-exporter sync # `all` is the default for sync
 
 By default, data is stored in `~/.agent-exporter.db`.
 
-#### Recalculating Costs
+### Ingest Usage Data from CCUsage Export
+
+Import usage data from a CCUsage JSON export file:
+
+```bash
+agent-exporter ingest cc.json
+```
+
+This command reads a CCUsage export file and imports all usage entries into the local database. Useful for:
+
+- Migrating data from another instance
+- Importing historical usage data
+- Manual data backup and restore
+
+Options:
+
+- `-d, --db <path>` - Custom database path
+
+### Recalculating Costs
 
 When pricing data is updated (e.g., new model prices added to the fallback database), you can recalculate costs for all existing messages:
 
@@ -45,12 +63,30 @@ This will:
 
 Options:
 
-- `-p, --provider <provider>` - Provider to sync (opencode, ccusage, codex, gemini, qwen, or all) (default: opencode)
+- `-p, --provider <provider>` - Provider to sync (opencode, ccusage, codex, gemini, qwen, or all) (default: all)
 - `-d, --db <path>` - Custom database path
 
 ### View Statistics
 
 Display usage statistics for various time periods:
+
+#### Interactive Live Dashboard
+
+```bash
+agent-exporter live
+```
+
+Launches an interactive dashboard with real-time updates. The dashboard allows you to:
+
+- Switch between different time periods (daily, weekly, monthly, yearly)
+- View detailed usage statistics with automatic refresh
+- Navigate through provider and model breakdowns
+- Use keyboard shortcuts for quick navigation
+
+Options:
+
+- `-d, --db <path>` - Custom database path
+- `--use-raw-labels` - Display raw model identifiers instead of friendly labels
 
 #### Today's Usage
 

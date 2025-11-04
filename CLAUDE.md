@@ -65,40 +65,104 @@ bun link
 
 **Database Schema**: Single `messages` table with indexed fields (date, provider, model, session_id) and `sync_state` table for tracking last sync per provider.
 
+**Utility Functions & DRY Principles**: The codebase follows DRY (Don't Repeat Yourself) principles with centralized utilities:
+
+- Error handling via `normalizeAndLogError()` in error-utils.ts
+- File system operations via `getDirectories()`, `getFiles()`, `readJsonFile()` in fs-utils.ts
+- Command execution via `spawnCommandAndParseJson()` in spawn-utils.ts
+- Date validation via `validateAndResolveDateRange()` in date-utils.ts
+- Daily aggregation via `aggregateMessagesByDailyUsage()` in aggregator.ts
+- Factory functions via `createEmptyDailyUsage()` and `createEmptyModelBreakdown()` in aggregator.ts
+- UI formatting via formatters in ui/formatters.ts
+
 ### Important Files
+
+**Core:**
 
 - **src/cli.ts** - CLI commands using Commander.js and Ink for UI rendering
 - **src/core/types.ts** - TypeScript interfaces and Zod schemas
 - **src/core/pricing.ts** - Cost calculation logic with genai-prices integration
+- **src/core/aggregator.ts** - Daily usage aggregation logic and factory functions
+- **src/core/date-utils.ts** - Date validation, period parsing, and range utilities
+- **src/core/error-utils.ts** - Centralized error handling and normalization
+- **src/core/fs-utils.ts** - File system utilities (directory/file reading, JSON parsing)
+- **src/core/spawn-utils.ts** - Command execution with JSON parsing and validation
+
+**Database:**
+
 - **src/database/manager.ts** - SQLite operations (CRUD, aggregations, cost recalculation)
 - **src/database/schema.ts** - Database initialization and schema
+
+**Providers & Exporters:**
+
 - **src/providers/** - Provider adapters for each platform
 - **src/exporters/** - CCUsage and JSON export formats
+
+**UI:**
+
 - **src/ui/** - Ink React components for terminal UI (stats display)
+- **src/ui/formatters.ts** - Number formatters and color utilities for consistent UI formatting
 
 ## Adding New Providers
 
 1. Create `src/providers/your-provider.ts` implementing `ProviderAdapter`
 2. Transform source data to `UnifiedMessage[]` format
-3. Use `calculateCost()` from pricing.ts for cost calculation
+3. Use utility functions for common operations (see below)
 4. Add provider to CLI in `src/cli.ts` sync command
 5. Update provider list in README.md
 
 Example structure:
 
 ```typescript
+import {normalizeAndLogError} from '../core/error-utils';
+import {getDirectories, getFiles, readJsonFile} from '../core/fs-utils';
+import {spawnCommandAndParseJson} from '../core/spawn-utils';
+import {calculateCost} from '../core/pricing';
+
 export class YourProviderAdapter implements ProviderAdapter {
   name = 'your-provider' as const;
   dataType = 'messages' as const;
 
   async fetchMessages(): Promise<UnifiedMessage[]> {
-    // Fetch from source
-    // Transform to UnifiedMessage[]
-    // Calculate costs
-    return unifiedMessages;
+    try {
+      // For file-based providers:
+      const sessionDirs = getDirectories(this.dataPath);
+      const files = getFiles(sessionPath, {
+        prefix: 'session-',
+        suffix: '.json',
+      });
+      const data = await readJsonFile(filePath);
+
+      // For command-based providers:
+      const data = await spawnCommandAndParseJson(
+        ['command', '--json'],
+        YourSchema,
+      );
+
+      // Calculate costs using the pricing utility
+      const cost = calculateCost(
+        model,
+        inputTokens,
+        outputTokens,
+        cacheCreationTokens,
+        cacheReadTokens,
+        provider,
+      );
+
+      return unifiedMessages;
+    } catch (error: unknown) {
+      throw normalizeAndLogError('to fetch YourProvider data', error);
+    }
   }
 }
 ```
+
+**Best Practices:**
+
+- Use `normalizeAndLogError()` for consistent error handling in catch blocks
+- Use `getDirectories()`, `getFiles()`, `readJsonFile()` for file system operations
+- Use `spawnCommandAndParseJson()` for executing CLI commands with JSON output
+- Use `calculateCost()` for cost calculations with automatic fallback to custom pricing
 
 ## Adding Custom Model Prices
 

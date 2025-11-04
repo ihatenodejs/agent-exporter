@@ -7,6 +7,14 @@ export interface DateRange {
 
 export type TimePeriod = 'daily' | 'weekly' | 'monthly' | 'yearly';
 
+const VALID_PERIODS: readonly TimePeriod[] = [
+  'daily',
+  'weekly',
+  'monthly',
+  'yearly',
+] as const;
+const ALLOWED_PERIODS_TEXT = VALID_PERIODS.join(', ');
+
 /**
  * Get the date range for today
  */
@@ -106,4 +114,50 @@ export function getDateRangeDescription(
   }
 
   return `${start.format('MMM D, YYYY')} - ${end.format('MMM D, YYYY')}`;
+}
+
+/**
+ * Type guard to check if a string is a valid TimePeriod
+ */
+export function isTimePeriod(value: string): value is TimePeriod {
+  return VALID_PERIODS.includes(value as TimePeriod);
+}
+
+/**
+ * Validates and resolves date range from period or start/end dates
+ * @param period - Optional period string (daily, weekly, monthly, yearly)
+ * @param startDate - Optional start date in YYYY-MM-DD format
+ * @param endDate - Optional end date in YYYY-MM-DD format
+ * @returns Object with validated start and end dates (empty strings if none provided)
+ * @throws Error if validation fails
+ */
+export function validateAndResolveDateRange(
+  period?: string,
+  startDate?: string,
+  endDate?: string,
+): {startDate: string; endDate: string} {
+  if (period) {
+    if (!isTimePeriod(period)) {
+      throw new Error(
+        `Invalid period: ${period}. Must be one of: ${ALLOWED_PERIODS_TEXT}`,
+      );
+    }
+
+    const range = getDateRangeForPeriod(period);
+    return {startDate: range.start, endDate: range.end};
+  }
+
+  if (startDate && endDate) {
+    if (!isValidDateString(startDate)) {
+      throw new Error(
+        `Invalid start date: ${startDate}. Use YYYY-MM-DD format.`,
+      );
+    }
+    if (!isValidDateString(endDate)) {
+      throw new Error(`Invalid end date: ${endDate}. Use YYYY-MM-DD format.`);
+    }
+    return {startDate, endDate};
+  }
+
+  return {startDate: '', endDate: ''};
 }

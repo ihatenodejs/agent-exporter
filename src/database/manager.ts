@@ -1,11 +1,8 @@
 import {type Database} from 'bun:sqlite';
 
+import {aggregateMessagesByDailyUsage} from '../core/aggregator';
 import {calculateCost} from '../core/pricing';
-import {
-  type UnifiedMessage,
-  type DailyUsage,
-  type ModelBreakdown,
-} from '../core/types';
+import {type UnifiedMessage, type DailyUsage} from '../core/types';
 
 interface MessageRow {
   id: string;
@@ -109,69 +106,7 @@ export class DatabaseManager {
 
   getDailyUsage(startDate: string, endDate: string): DailyUsage[] {
     const messages = this.getMessagesByDateRange(startDate, endDate);
-    const dailyMap = new Map<string, Map<string, ModelBreakdown>>();
-
-    for (const msg of messages) {
-      let modelMap = dailyMap.get(msg.date);
-      if (modelMap === undefined) {
-        modelMap = new Map<string, ModelBreakdown>();
-        dailyMap.set(msg.date, modelMap);
-      }
-
-      let breakdown = modelMap.get(msg.model);
-      if (breakdown === undefined) {
-        breakdown = {
-          modelName: msg.model,
-          inputTokens: 0,
-          outputTokens: 0,
-          cacheCreationTokens: 0,
-          cacheReadTokens: 0,
-          cost: 0,
-        };
-        modelMap.set(msg.model, breakdown);
-      }
-
-      breakdown.inputTokens += msg.inputTokens;
-      breakdown.outputTokens += msg.outputTokens;
-      breakdown.cacheCreationTokens += msg.cacheCreationTokens;
-      breakdown.cacheReadTokens += msg.cacheReadTokens;
-      breakdown.cost += msg.cost;
-    }
-
-    const dailyUsage: DailyUsage[] = [];
-    for (const [date, modelMap] of dailyMap.entries()) {
-      const modelBreakdowns = Array.from(modelMap.values());
-      const daily: DailyUsage = {
-        date,
-        inputTokens: 0,
-        outputTokens: 0,
-        cacheCreationTokens: 0,
-        cacheReadTokens: 0,
-        totalTokens: 0,
-        totalCost: 0,
-        modelsUsed: [],
-        modelBreakdowns,
-      };
-
-      for (const breakdown of modelBreakdowns) {
-        daily.inputTokens += breakdown.inputTokens;
-        daily.outputTokens += breakdown.outputTokens;
-        daily.cacheCreationTokens += breakdown.cacheCreationTokens;
-        daily.cacheReadTokens += breakdown.cacheReadTokens;
-        daily.totalCost += breakdown.cost;
-        daily.modelsUsed.push(breakdown.modelName);
-      }
-
-      daily.totalTokens =
-        daily.inputTokens +
-        daily.outputTokens +
-        daily.cacheCreationTokens +
-        daily.cacheReadTokens;
-
-      dailyUsage.push(daily);
-    }
-
-    return dailyUsage.sort((a, b) => a.date.localeCompare(b.date));
+    return aggregateMessagesByDailyUsage(messages);
   }
 
   getSyncState(

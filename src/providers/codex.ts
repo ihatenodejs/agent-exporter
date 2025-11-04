@@ -1,7 +1,9 @@
 import dayjs from 'dayjs';
 import {z} from 'zod';
 
-import {type UnifiedMessage, type ProviderAdapter} from '../core/types';
+import {normalizeAndLogError} from '../core/error-utils';
+import {spawnCommandAndParseJson} from '../core/spawn-utils';
+import {type UsageProviderAdapter, type UsageEntry} from '../core/types';
 
 const CodexModelSchema = z.object({
   inputTokens: z.number(),
@@ -35,49 +37,28 @@ const CodexExportSchema = z.object({
   }),
 });
 
-export class CodexAdapter implements ProviderAdapter {
+export class CodexAdapter implements UsageProviderAdapter {
   name = 'codex' as const;
   dataType = 'usage entries' as const;
 
-  async fetchMessages(): Promise<UnifiedMessage[]> {
-    const unifiedMessages: UnifiedMessage[] = [];
+  async fetchUsageEntries(): Promise<UsageEntry[]> {
+    const usageEntries: UsageEntry[] = [];
 
     try {
-      const proc = Bun.spawn(['bunx', '@ccusage/codex@latest', '--json'], {
-        stdout: 'pipe',
-        stderr: 'pipe',
-      });
-
-      const output = await new Response(proc.stdout).text();
-      const exitCode = await proc.exited;
-
-      if (exitCode !== 0) {
-        const errorOutput = await new Response(proc.stderr).text();
-        throw new Error(
-          `codex command failed with exit code ${exitCode}: ${errorOutput}`,
-        );
-      }
-
-      const data: unknown = JSON.parse(output);
-      const parsed = CodexExportSchema.safeParse(data);
-
-      if (!parsed.success) {
-        console.warn('Failed to parse codex output:', parsed.error);
-        return unifiedMessages;
-      }
-
-      const codexData = parsed.data;
+      const codexData = await spawnCommandAndParseJson(
+        ['bunx', '@ccusage/codex@latest', '--json'],
+        CodexExportSchema,
+      );
 
       for (const dailyEntry of codexData.daily) {
         const modelEntries = Object.entries(dailyEntry.models);
 
-        for (let i = 0; i < modelEntries.length; i++) {
-          const [modelName, modelData] = modelEntries[i];
+        const totalTokensForDay = modelEntries.reduce(
+          (sum, [, data]) => sum + data.totalTokens,
+          0,
+        );
 
-          const messageId = `codex-${dailyEntry.date}-${modelName}-${i}`;
-
-          const sessionId = `codex-session-${dailyEntry.date}`;
-
+        for (const [modelName, modelData] of modelEntries) {
           const timestamp = dayjs(dailyEntry.date, 'MMM DD, YYYY').valueOf();
           const date = dayjs(timestamp).format('YYYY-MM-DD');
 
@@ -85,11 +66,13 @@ export class CodexAdapter implements ProviderAdapter {
           const actualInputTokens =
             modelData.inputTokens - modelData.cachedInputTokens;
 
-          const cost = dailyEntry.costUSD / modelEntries.length;
+          const cost =
+            totalTokensForDay > 0
+              ? (modelData.totalTokens / totalTokensForDay) * dailyEntry.costUSD
+              : dailyEntry.costUSD / modelEntries.length;
 
-          unifiedMessages.push({
-            id: messageId,
-            sessionId,
+          usageEntries.push({
+            date,
             provider: 'codex',
             model: modelName,
             inputTokens: actualInputTokens,
@@ -97,22 +80,15 @@ export class CodexAdapter implements ProviderAdapter {
             reasoningTokens: modelData.reasoningOutputTokens,
             cacheCreationTokens: 0,
             cacheReadTokens,
-            cost,
-            timestamp,
-            date,
+            totalCost: cost,
+            entryCount: 1, // Each entry represents aggregated usage for that model/day
           });
         }
       }
     } catch (error: unknown) {
-      const normalizedError =
-        error instanceof Error ? error : new Error(String(error));
-      console.error('Failed to fetch Codex data:', normalizedError.message);
-      if (normalizedError.stack) {
-        console.error(normalizedError.stack);
-      }
-      throw normalizedError;
+      throw normalizeAndLogError('to fetch Codex data', error);
     }
 
-    return unifiedMessages;
+    return usageEntries;
   }
 }

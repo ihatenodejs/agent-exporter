@@ -189,7 +189,7 @@ describe('getModelPricing', () => {
       inputPer1M: 0.35,
       outputPer1M: 1.55,
       cacheWritePer1M: 0,
-      cacheReadPer1M: 0,
+      cacheReadPer1M: 0.11,
     });
   });
 

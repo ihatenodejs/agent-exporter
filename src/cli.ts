@@ -7,14 +7,16 @@ import {join, resolve} from 'path';
 import {Command} from 'commander';
 import React from 'react';
 
+import packageJson from '../package.json';
 import {fillMissingDates} from './core/aggregator';
 import {
   getDateRangeDescription,
   getDateRangeForPeriod,
   isValidDateString,
+  validateAndResolveDateRange,
   type TimePeriod,
 } from './core/date-utils';
-import {computeUsageSummary} from './core/statistics';
+import {computeUsageSummary, type UsageSummary} from './core/statistics';
 import {DatabaseManager} from './database/manager';
 import {initializeDatabase} from './database/schema';
 import {CCUsageExporter} from './exporters/ccusage';
@@ -29,7 +31,7 @@ import {GeminiAdapter} from './providers/gemini';
 import {OpenCodeAdapter} from './providers/opencode';
 import {QwenAdapter} from './providers/qwen';
 
-import type {ProviderAdapter} from './core/types';
+import type {ProviderAdapter, UnifiedMessage, UsageEntry} from './core/types';
 
 const program = new Command();
 
@@ -74,9 +76,6 @@ interface RangeCommandOptions extends StatsCommandOptions {
   readonly end: string;
 }
 
-const VALID_PERIODS = ['daily', 'weekly', 'monthly', 'yearly'] as const;
-const ALLOWED_PERIODS_TEXT = VALID_PERIODS.join(', ');
-
 type SingleProvider = Exclude<ProviderOption, 'all'>;
 
 const createProviderAdapter: Record<SingleProvider, () => ProviderAdapter> = {
@@ -96,9 +95,6 @@ const buildAdapters = (provider: ProviderOption): ProviderAdapter[] => {
 
   return [createProviderAdapter[provider]()];
 };
-
-const isTimePeriod = (value: string): value is TimePeriod =>
-  (VALID_PERIODS as readonly string[]).includes(value);
 
 const toError = (value: unknown): Error => {
   if (value instanceof Error) {
@@ -126,10 +122,43 @@ const logError = (context: string, value: unknown): void => {
   }
 };
 
+/**
+ * Transform usage entries to unified messages
+ */
+const transformUsageEntriesToMessages = (
+  adapter: {name: string},
+  usageEntries: UsageEntry[],
+): UnifiedMessage[] => {
+  return usageEntries.flatMap((entry) => {
+    const message: UnifiedMessage = {
+      id: `${adapter.name}-${entry.date}-${entry.model}`,
+      sessionId: `${adapter.name}-session-${entry.date}`,
+      provider: entry.provider,
+      model: entry.model,
+      inputTokens: entry.inputTokens,
+      outputTokens: entry.outputTokens,
+      reasoningTokens: entry.reasoningTokens,
+      cacheCreationTokens: entry.cacheCreationTokens,
+      cacheReadTokens: entry.cacheReadTokens,
+      cost: entry.totalCost,
+      timestamp: new Date(entry.date).getTime(),
+      date: entry.date,
+    };
+    return entry.entryCount
+      ? Array(entry.entryCount)
+          .fill(message)
+          .map((_, i) => ({
+            ...message,
+            id: `${message.id}-${i}`,
+          }))
+      : [message];
+  });
+};
+
 program
-  .name('agent-exporter')
-  .description('AI agent usage exporter for tracking and analyzing LLM costs')
-  .version('1.0.0');
+  .name(packageJson.name)
+  .description(packageJson.description)
+  .version(packageJson.version);
 
 const VALID_PROVIDERS = [
   'opencode',
@@ -170,10 +199,21 @@ program
       let totalMessages = 0;
       for (const adapter of adapters) {
         console.log(`\nSyncing ${adapter.name}...`);
-        const messages = await adapter.fetchMessages();
+
+        let messages: UnifiedMessage[];
+        let itemCount: number;
+
+        if (adapter.dataType === 'usage entries') {
+          const usageEntries = await adapter.fetchUsageEntries();
+          messages = transformUsageEntriesToMessages(adapter, usageEntries);
+          itemCount = usageEntries.length;
+        } else {
+          messages = await adapter.fetchMessages();
+          itemCount = messages.length;
+        }
 
         console.log(
-          `Found ${messages.length} ${adapter.dataType} from ${adapter.name}`,
+          `Found ${itemCount} ${adapter.dataType} from ${adapter.name}`,
         );
 
         if (messages.length > 0) {
@@ -282,37 +322,26 @@ program
           process.exit(1);
         }
 
-        let startDate = options.start;
-        let endDate = options.end;
         const {period} = options;
+        let dateRange;
+        try {
+          dateRange = validateAndResolveDateRange(
+            period,
+            options.start,
+            options.end,
+          );
+        } catch (err) {
+          console.error((err as Error).message);
+          process.exit(1);
+        }
+        const startDate = dateRange.startDate;
+        const endDate = dateRange.endDate;
 
         if (period) {
-          if (!isTimePeriod(period)) {
-            console.error(
-              `Invalid period: ${period}. Must be one of: ${ALLOWED_PERIODS_TEXT}`,
-            );
-            process.exit(1);
-          }
-
-          const range = getDateRangeForPeriod(period);
-          startDate = range.start;
-          endDate = range.end;
           console.log(
-            `Exporting ${period} data (${getDateRangeDescription(range.start, range.end)})...`,
+            `Exporting ${period} data (${getDateRangeDescription(startDate, endDate)})...`,
           );
         } else if (startDate && endDate) {
-          if (!isValidDateString(startDate)) {
-            console.error(
-              `Invalid start date: ${startDate}. Use YYYY-MM-DD format.`,
-            );
-            process.exit(1);
-          }
-          if (!isValidDateString(endDate)) {
-            console.error(
-              `Invalid end date: ${endDate}. Use YYYY-MM-DD format.`,
-            );
-            process.exit(1);
-          }
           console.log(
             `Exporting data for ${getDateRangeDescription(startDate, endDate)}...`,
           );
@@ -352,41 +381,26 @@ program
   .option('-d, --db <path>', 'Database path', DEFAULT_DB_PATH)
   .action(async (options: JsonCommandOptions): Promise<void> => {
     try {
-      let startDate = options.start;
-      let endDate = options.end;
       const {period} = options;
-
-      if (period) {
-        if (!isTimePeriod(period)) {
-          console.error(
-            `Invalid period: ${period}. Must be one of: ${ALLOWED_PERIODS_TEXT}`,
-          );
-          process.exit(1);
-        }
-
-        const range = getDateRangeForPeriod(period);
-        startDate = range.start;
-        endDate = range.end;
-      } else if (startDate && endDate) {
-        // Validate custom date range
-        if (!isValidDateString(startDate)) {
-          console.error(
-            `Invalid start date: ${startDate}. Use YYYY-MM-DD format.`,
-          );
-          process.exit(1);
-        }
-        if (!isValidDateString(endDate)) {
-          console.error(`Invalid end date: ${endDate}. Use YYYY-MM-DD format.`);
-          process.exit(1);
-        }
+      let dateRange;
+      try {
+        dateRange = validateAndResolveDateRange(
+          period,
+          options.start,
+          options.end,
+        );
+      } catch (err) {
+        console.error((err as Error).message);
+        process.exit(1);
       }
+      const startDate = dateRange.startDate;
+      const endDate = dateRange.endDate;
 
       const db = initializeDatabase(options.db);
       const dbManager = new DatabaseManager(db);
       const exporter = new JSONExporter(dbManager);
 
       if (options.output) {
-        // Output to file
         const outputPath = await exporter.export({
           startDate,
           endDate,
@@ -420,16 +434,6 @@ async function displayStats(
   showHidden = false,
 ): Promise<void> {
   let dbManager: DatabaseManager | undefined;
-  const originalDev = process.env.DEV;
-  const enableDevtools =
-    process.env.AGENT_EXPORTER_DEVTOOLS === 'true' ||
-    process.env.AGENT_EXPORTER_DEVTOOLS === '1';
-
-  if (enableDevtools) {
-    process.env.DEV = 'true';
-  } else {
-    process.env.DEV = 'false';
-  }
 
   try {
     const db = initializeDatabase(dbPath);
@@ -463,15 +467,171 @@ async function displayStats(
     process.exit(1);
   } finally {
     dbManager?.close();
-    if (originalDev === undefined) {
-      delete process.env.DEV;
-    } else {
-      process.env.DEV = originalDev;
-    }
   }
 }
 
-// Daily stats
+/**
+ * Display interactive dashboard with real-time updates
+ */
+async function displayDashboard(
+  startDate: string,
+  endDate: string,
+  dbPath: string,
+  useRawLabels = false,
+): Promise<void> {
+  let dbManager: DatabaseManager | undefined;
+
+  if (process.stdout.isTTY) {
+    process.stdout.write('\x1B[2J\x1B[3J\x1B[H');
+  } else {
+    console.clear();
+  }
+
+  try {
+    const db = initializeDatabase(dbPath);
+    dbManager = new DatabaseManager(db);
+
+    let currentPeriod: TimePeriod = 'monthly';
+    let currentStartDate = startDate;
+    let currentEndDate = endDate;
+    let isSyncing = false;
+    let lastSyncTime = 0;
+
+    const updatePeriod = (period: TimePeriod): void => {
+      currentPeriod = period;
+      const range = getDateRangeForPeriod(period);
+      currentStartDate = range.start;
+      currentEndDate = range.end;
+    };
+
+    const getCurrentRangeDescription = (): string => {
+      return getDateRangeDescription(currentStartDate, currentEndDate);
+    };
+
+    const syncFromProviders = async (
+      refreshIntervalSeconds = 30,
+      isManualRefresh = false,
+    ): Promise<void> => {
+      if (isSyncing) {
+        // Don't sync if already syncing
+        return;
+      }
+
+      // Only rate limit automatic refreshes, manual refreshes always sync
+      if (
+        !isManualRefresh &&
+        Date.now() - lastSyncTime < refreshIntervalSeconds * 1000
+      ) {
+        // Don't sync if synced within the refresh interval
+        return;
+      }
+
+      isSyncing = true;
+      try {
+        const adapters = buildAdapters('all');
+
+        for (const adapter of adapters) {
+          let messages: UnifiedMessage[];
+
+          if (adapter.dataType === 'usage entries') {
+            const usageEntries = await adapter.fetchUsageEntries();
+            messages = transformUsageEntriesToMessages(adapter, usageEntries);
+          } else {
+            messages = await adapter.fetchMessages();
+          }
+
+          if (messages.length > 0) {
+            if (!dbManager) throw new Error('Database manager not initialized');
+            dbManager.insertMessages(messages);
+            const lastMessage = messages[messages.length - 1];
+            dbManager.updateSyncState(adapter.name, Date.now(), lastMessage.id);
+          }
+        }
+
+        if (!dbManager) throw new Error('Database manager not initialized');
+        dbManager.recalculateCosts();
+        lastSyncTime = Date.now();
+      } catch (error) {
+        logError('Background sync failed', error);
+      } finally {
+        isSyncing = false;
+      }
+    };
+
+    const fetchDashboardData = async (
+      isManualRefresh = false,
+      refreshIntervalSeconds = 30,
+    ): Promise<{
+      summary: UsageSummary;
+      lastUpdated: Date;
+      isSyncing: boolean;
+    }> => {
+      if (!dbManager) {
+        throw new Error('Database manager not initialized');
+      }
+
+      await syncFromProviders(refreshIntervalSeconds, isManualRefresh);
+
+      const messages = dbManager.getMessagesByDateRange(
+        currentStartDate,
+        currentEndDate,
+      );
+      const dailyUsage = dbManager.getDailyUsage(
+        currentStartDate,
+        currentEndDate,
+      );
+      const normalizedDailyUsage = fillMissingDates(
+        dailyUsage,
+        currentStartDate,
+        currentEndDate,
+      );
+      const summary = computeUsageSummary(messages, normalizedDailyUsage);
+      return {summary, lastUpdated: new Date(), isSyncing};
+    };
+
+    const {DashboardContainer} = await import('./ui/DashboardContainer');
+    const {render} = await import('ink');
+
+    const renderResult = render(
+      React.createElement(DashboardContainer, {
+        rangeDescription: getCurrentRangeDescription(),
+        useRawLabels,
+        fetchData: fetchDashboardData,
+        onPeriodChange: updatePeriod,
+        currentPeriod,
+        onExit: () => {
+          // Clean up will happen in finally block
+        },
+      }),
+    );
+
+    await renderResult.waitUntilExit();
+  } catch (error: unknown) {
+    logError('Dashboard failed', error);
+    process.exit(1);
+  } finally {
+    dbManager?.close();
+  }
+}
+
+program
+  .command('live')
+  .description('Launch interactive live view with real-time updates')
+  .option('-d, --db <path>', 'Database path', DEFAULT_DB_PATH)
+  .option(
+    '--use-raw-labels',
+    'Display raw model identifiers instead of friendly labels',
+  )
+  .action(async (options: StatsCommandOptions): Promise<void> => {
+    const {start, end} = getDateRangeForPeriod('monthly');
+    await displayDashboard(
+      start,
+      end,
+      options.db,
+      Boolean(options.useRawLabels),
+    );
+  });
+
 program
   .command('daily')
   .description("Display today's usage statistics")
@@ -493,7 +653,6 @@ program
     );
   });
 
-// Weekly stats
 program
   .command('weekly')
   .description("Display this week's usage statistics")
@@ -515,7 +674,6 @@ program
     );
   });
 
-// Monthly stats
 program
   .command('monthly')
   .description("Display this month's usage statistics")
@@ -537,7 +695,6 @@ program
     );
   });
 
-// Yearly stats
 program
   .command('yearly')
   .description("Display this year's usage statistics")
@@ -559,7 +716,6 @@ program
     );
   });
 
-// Custom date range stats
 program
   .command('range')
   .description('Display usage statistics for a custom date range')

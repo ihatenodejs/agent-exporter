@@ -1,17 +1,18 @@
-import {readdirSync} from 'fs';
 import {homedir} from 'os';
 import {join} from 'path';
 
 import dayjs from 'dayjs';
 
+import {normalizeAndLogError} from '../core/error-utils';
+import {getDirectories, getFiles, readJsonFile} from '../core/fs-utils';
 import {calculateCost} from '../core/pricing';
 import {
   MessageSchema,
   type UnifiedMessage,
-  type ProviderAdapter,
+  type MessagesProviderAdapter,
 } from '../core/types';
 
-export class OpenCodeAdapter implements ProviderAdapter {
+export class OpenCodeAdapter implements MessagesProviderAdapter {
   name = 'opencode' as const;
   dataType = 'messages' as const;
   private readonly messagesPath: string;
@@ -25,33 +26,23 @@ export class OpenCodeAdapter implements ProviderAdapter {
     const unifiedMessages: UnifiedMessage[] = [];
 
     try {
-      const entries = readdirSync(this.messagesPath, {withFileTypes: true});
-      const sessionDirs = entries
-        .filter((e) => e.isDirectory() && e.name.startsWith('ses_'))
-        .map((e) => e.name);
+      const allDirs = getDirectories(this.messagesPath);
+      const sessionDirs = allDirs.filter((name) => name.startsWith('ses_'));
 
       for (const sessionDir of sessionDirs) {
         const sessionPath = join(this.messagesPath, sessionDir);
 
         try {
-          const messageEntries = readdirSync(sessionPath, {
-            withFileTypes: true,
+          const messageFiles = getFiles(sessionPath, {
+            prefix: 'msg_',
+            suffix: '.json',
           });
-          const messageFiles = messageEntries
-            .filter(
-              (e) =>
-                e.isFile() &&
-                e.name.startsWith('msg_') &&
-                e.name.endsWith('.json'),
-            )
-            .map((e) => e.name);
 
           for (const messageFile of messageFiles) {
             const messagePath = join(sessionPath, messageFile);
 
             try {
-              const file = Bun.file(messagePath);
-              const data: unknown = await file.json();
+              const data = await readJsonFile(messagePath);
 
               const parsed = MessageSchema.safeParse(data);
               if (!parsed.success) {
@@ -113,16 +104,10 @@ export class OpenCodeAdapter implements ProviderAdapter {
         }
       }
     } catch (error: unknown) {
-      const normalizedError =
-        error instanceof Error ? error : new Error(String(error));
-      console.error(
-        `Failed to read messages path ${this.messagesPath}:`,
-        normalizedError.message,
+      throw normalizeAndLogError(
+        `to read messages path ${this.messagesPath}`,
+        error,
       );
-      if (normalizedError.stack) {
-        console.error(normalizedError.stack);
-      }
-      throw normalizedError;
     }
 
     return unifiedMessages;

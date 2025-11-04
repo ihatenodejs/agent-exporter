@@ -6,6 +6,14 @@ Export usage statistics from various agents.
 
 For detailed information on installation, usage, and development, please see the [full documentation](./docs/index.md).
 
+## Supported Providers
+
+- OpenCode
+- Claude Code (via `ccusage`)
+- Codex (via `@ccusage/codex`)
+- Gemini CLI
+- Qwen CLI
+
 ## License
 
 ```plaintext

@@ -1,9 +1,8 @@
 /**
  * Friendly display labels for common models.
  *
- * This database mirrors the fallback pricing approach, allowing us to map
+ * This database mirrors the fallback pricing approach, allowing mapping of
  * verbose internal identifiers to human-readable names in the CLI.
- * Update this list as you add support for new models or want to tweak labels.
  */
 
 export interface ModelLabelEntry {
@@ -45,11 +44,19 @@ export const MODEL_LABELS: ModelLabelEntry[] = [
     model: 'gpt-5',
     label: 'GPT-5',
   },
+  {
+    model: 'gpt-5-codex',
+    label: 'GPT-5 Codex',
+  },
 
   // Google Gemini
   {
     model: 'gemini-2.5-pro',
     label: 'Gemini 2.5 Pro',
+  },
+  {
+    model: 'gemini-2.5-flash',
+    label: 'Gemini 2.5 Flash',
   },
   {
     model: 'gemini-2.5-pro-preview-06-05',
@@ -63,6 +70,10 @@ export const MODEL_LABELS: ModelLabelEntry[] = [
   },
 
   // Zhipu GLM
+  {
+    model: 'glm-4.6',
+    label: 'GLM 4.6',
+  },
   {
     model: 'glm-4.5',
     label: 'GLM 4.5',
