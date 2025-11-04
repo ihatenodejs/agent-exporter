@@ -53,6 +53,11 @@ export class CodexAdapter implements UsageProviderAdapter {
       for (const dailyEntry of codexData.daily) {
         const modelEntries = Object.entries(dailyEntry.models);
 
+        const totalTokensForDay = modelEntries.reduce(
+          (sum, [, data]) => sum + data.totalTokens,
+          0,
+        );
+
         for (const [modelName, modelData] of modelEntries) {
           const timestamp = dayjs(dailyEntry.date, 'MMM DD, YYYY').valueOf();
           const date = dayjs(timestamp).format('YYYY-MM-DD');
@@ -61,7 +66,10 @@ export class CodexAdapter implements UsageProviderAdapter {
           const actualInputTokens =
             modelData.inputTokens - modelData.cachedInputTokens;
 
-          const cost = dailyEntry.costUSD / modelEntries.length;
+          const cost =
+            totalTokensForDay > 0
+              ? (modelData.totalTokens / totalTokensForDay) * dailyEntry.costUSD
+              : dailyEntry.costUSD / modelEntries.length;
 
           usageEntries.push({
             date,

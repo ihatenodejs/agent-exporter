@@ -129,7 +129,7 @@ export function isTimePeriod(value: string): value is TimePeriod {
  * @param startDate - Optional start date in YYYY-MM-DD format
  * @param endDate - Optional end date in YYYY-MM-DD format
  * @returns Object with validated start and end dates (empty strings if none provided)
- * @throws Process exits with error if validation fails
+ * @throws Error if validation fails
  */
 export function validateAndResolveDateRange(
   period?: string,
@@ -138,10 +138,9 @@ export function validateAndResolveDateRange(
 ): {startDate: string; endDate: string} {
   if (period) {
     if (!isTimePeriod(period)) {
-      console.error(
+      throw new Error(
         `Invalid period: ${period}. Must be one of: ${ALLOWED_PERIODS_TEXT}`,
       );
-      process.exit(1);
     }
 
     const range = getDateRangeForPeriod(period);
@@ -150,12 +149,12 @@ export function validateAndResolveDateRange(
 
   if (startDate && endDate) {
     if (!isValidDateString(startDate)) {
-      console.error(`Invalid start date: ${startDate}. Use YYYY-MM-DD format.`);
-      process.exit(1);
+      throw new Error(
+        `Invalid start date: ${startDate}. Use YYYY-MM-DD format.`,
+      );
     }
     if (!isValidDateString(endDate)) {
-      console.error(`Invalid end date: ${endDate}. Use YYYY-MM-DD format.`);
-      process.exit(1);
+      throw new Error(`Invalid end date: ${endDate}. Use YYYY-MM-DD format.`);
     }
     return {startDate, endDate};
   }

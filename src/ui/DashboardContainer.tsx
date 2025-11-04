@@ -61,14 +61,14 @@ export const DashboardContainer = ({
   );
 
   const handlePeriodChange = useCallback(
-    (period: TimePeriod) => {
-      setInternalCurrentPeriod(period);
+    async (period: TimePeriod) => {
+      try {
+        setInternalCurrentPeriod(period);
 
-      if (onPeriodChange) {
-        onPeriodChange(period);
-      }
+        if (onPeriodChange) {
+          onPeriodChange(period);
+        }
 
-      setTimeout(async () => {
         await handleRefresh();
         const {getDateRangeForPeriod, getDateRangeDescription} = await import(
           '../core/date-utils'
@@ -77,7 +77,9 @@ export const DashboardContainer = ({
         setCurrentRangeDescription(
           getDateRangeDescription(range.start, range.end),
         );
-      }, 0);
+      } catch (error) {
+        console.error('Error during period change:', error);
+      }
     },
     [onPeriodChange, handleRefresh],
   );

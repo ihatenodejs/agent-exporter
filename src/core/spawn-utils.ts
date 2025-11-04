@@ -30,7 +30,25 @@ export async function spawnCommandAndParseJson<T>(
     );
   }
 
-  const data: unknown = JSON.parse(output);
+  let data: unknown;
+  try {
+    data = JSON.parse(output);
+  } catch (parseError) {
+    const outputSnippet =
+      output.length > 500 ? output.slice(0, 500) + '...' : output;
+
+    const errorMessage =
+      `Failed to parse JSON output from ${command.join(' ')} (exit code: ${exitCode}). ` +
+      `Raw output: ${JSON.stringify(outputSnippet)}. ` +
+      `Original error: ${parseError instanceof Error ? parseError.message : String(parseError)}`;
+
+    const wrappedError = new Error(errorMessage);
+    if (parseError instanceof Error) {
+      wrappedError.cause = parseError;
+    }
+    throw wrappedError;
+  }
+
   const parsed = schema.safeParse(data);
 
   if (!parsed.success) {

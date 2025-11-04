@@ -101,7 +101,7 @@ describe('CodexAdapter', () => {
       reasoningTokens: 50,
       cacheCreationTokens: 0,
       cacheReadTokens: 100,
-      cost: 2,
+      cost: (1150 / 2100) * 4.0,
       date: '2024-01-05',
     });
     expect(messages[0].timestamp).toBe(new Date('2024-01-05').getTime());
@@ -116,7 +116,7 @@ describe('CodexAdapter', () => {
       reasoningTokens: 50,
       cacheCreationTokens: 0,
       cacheReadTokens: 100,
-      cost: 2,
+      cost: (950 / 2100) * 4.0,
       date: '2024-01-05',
     });
     expect(messages[1].timestamp).toBe(new Date('2024-01-05').getTime());

@@ -323,11 +323,17 @@ program
         }
 
         const {period} = options;
-        const dateRange = validateAndResolveDateRange(
-          period,
-          options.start,
-          options.end,
-        );
+        let dateRange;
+        try {
+          dateRange = validateAndResolveDateRange(
+            period,
+            options.start,
+            options.end,
+          );
+        } catch (err) {
+          console.error((err as Error).message);
+          process.exit(1);
+        }
         const startDate = dateRange.startDate;
         const endDate = dateRange.endDate;
 
@@ -376,11 +382,17 @@ program
   .action(async (options: JsonCommandOptions): Promise<void> => {
     try {
       const {period} = options;
-      const dateRange = validateAndResolveDateRange(
-        period,
-        options.start,
-        options.end,
-      );
+      let dateRange;
+      try {
+        dateRange = validateAndResolveDateRange(
+          period,
+          options.start,
+          options.end,
+        );
+      } catch (err) {
+        console.error((err as Error).message);
+        process.exit(1);
+      }
       const startDate = dateRange.startDate;
       const endDate = dateRange.endDate;
 
