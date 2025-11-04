@@ -1,10 +1,12 @@
-import {readdirSync, existsSync} from 'fs';
+import {existsSync} from 'fs';
 import {homedir} from 'os';
 import {join} from 'path';
 
 import dayjs from 'dayjs';
 import {z} from 'zod';
 
+import {normalizeAndLogError} from '../core/error-utils';
+import {getDirectories, getFiles, readJsonFile} from '../core/fs-utils';
 import {calculateCost} from '../core/pricing';
 import {type UnifiedMessage, type MessagesProviderAdapter} from '../core/types';
 
@@ -46,10 +48,7 @@ export class QwenAdapter implements MessagesProviderAdapter {
     const unifiedMessages: UnifiedMessage[] = [];
 
     try {
-      const entries = readdirSync(this.tmpPath, {withFileTypes: true});
-      const sessionDirs = entries
-        .filter((e) => e.isDirectory())
-        .map((e) => e.name);
+      const sessionDirs = getDirectories(this.tmpPath);
 
       for (const sessionDir of sessionDirs) {
         const sessionPath = join(this.tmpPath, sessionDir);
@@ -60,22 +59,16 @@ export class QwenAdapter implements MessagesProviderAdapter {
         }
 
         try {
-          const chatEntries = readdirSync(chatsPath, {withFileTypes: true});
-          const sessionFiles = chatEntries
-            .filter(
-              (e) =>
-                e.isFile() &&
-                e.name.startsWith('session-') &&
-                e.name.endsWith('.json'),
-            )
-            .map((e) => e.name);
+          const sessionFiles = getFiles(chatsPath, {
+            prefix: 'session-',
+            suffix: '.json',
+          });
 
           for (const sessionFile of sessionFiles) {
             const sessionFilePath = join(chatsPath, sessionFile);
 
             try {
-              const file = Bun.file(sessionFilePath);
-              const data: unknown = await file.json();
+              const data = await readJsonFile(sessionFilePath);
 
               const parsed = QwenSessionSchema.safeParse(data);
               if (!parsed.success) {
@@ -142,16 +135,7 @@ export class QwenAdapter implements MessagesProviderAdapter {
         }
       }
     } catch (error: unknown) {
-      const normalizedError =
-        error instanceof Error ? error : new Error(String(error));
-      console.error(
-        `Failed to read tmp path ${this.tmpPath}:`,
-        normalizedError.message,
-      );
-      if (normalizedError.stack) {
-        console.error(normalizedError.stack);
-      }
-      throw normalizedError;
+      throw normalizeAndLogError(`to read tmp path ${this.tmpPath}`, error);
     }
 
     return unifiedMessages;

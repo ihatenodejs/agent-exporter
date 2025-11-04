@@ -1,6 +1,15 @@
 import chalk from 'chalk';
 import {Box, Text} from 'ink';
 
+import {
+  formatCount,
+  formatTokens,
+  formatTokensDecimal,
+  formatCurrency,
+  integerFormatter,
+  decimalFormatter,
+  currencyFormatter,
+} from './formatters';
 import {Table, type TableRow} from './Table';
 import {getModelDisplayName} from '../core/database/model-labels';
 
@@ -8,38 +17,6 @@ import type {AggregatedUsageRow, UsageSummary} from '../core/statistics';
 import type {ReactElement, ReactNode} from 'react';
 
 const MAX_TABLE_ROWS = 10;
-
-const integerFormatter = new Intl.NumberFormat('en-US', {
-  maximumFractionDigits: 0,
-});
-
-const decimalFormatter = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
-
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-const formatCount = (value: number): string =>
-  value === 0 ? chalk.gray('0') : chalk.white(integerFormatter.format(value));
-
-const formatTokens = (value: number): string =>
-  value === 0 ? chalk.gray('0') : chalk.yellow(integerFormatter.format(value));
-
-const formatTokensDecimal = (value: number): string =>
-  value === 0
-    ? chalk.gray('0.0')
-    : chalk.yellow(decimalFormatter.format(value));
-
-const formatCurrency = (value: number): string =>
-  value === 0
-    ? chalk.gray(currencyFormatter.format(0))
-    : chalk.green(currencyFormatter.format(value));
 
 const formatCachePair = (creationTokens: number, readTokens: number): string =>
   `${formatTokens(creationTokens)}/${formatTokens(readTokens)}`;

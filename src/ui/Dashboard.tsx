@@ -2,39 +2,20 @@ import chalk from 'chalk';
 import {Box, Text, useApp, useInput, useStdout} from 'ink';
 import {useState, useEffect, useCallback, useMemo} from 'react';
 
+import {
+  formatCount,
+  formatTokens,
+  formatCurrency,
+  integerFormatter,
+  decimalFormatter,
+  currencyFormatter,
+} from './formatters';
 import {Table, type TableRow} from './Table';
 import {getModelDisplayName} from '../core/database/model-labels';
 
 import type {TimePeriod} from '../core/date-utils';
 import type {UsageSummary} from '../core/statistics';
 import type {ReactElement} from 'react';
-
-const integerFormatter = new Intl.NumberFormat('en-US', {
-  maximumFractionDigits: 0,
-});
-
-const decimalFormatter = new Intl.NumberFormat('en-US', {
-  minimumFractionDigits: 1,
-  maximumFractionDigits: 1,
-});
-
-const currencyFormatter = new Intl.NumberFormat('en-US', {
-  style: 'currency',
-  currency: 'USD',
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
-
-const formatCount = (value: number): string =>
-  value === 0 ? chalk.gray('0') : chalk.white(integerFormatter.format(value));
-
-const formatTokens = (value: number): string =>
-  value === 0 ? chalk.gray('0') : chalk.yellow(integerFormatter.format(value));
-
-const formatCurrency = (value: number): string =>
-  value === 0
-    ? chalk.gray(currencyFormatter.format(0))
-    : chalk.green(currencyFormatter.format(value));
 
 type LayoutKey = '3x1' | '2x2' | '1x3';
 

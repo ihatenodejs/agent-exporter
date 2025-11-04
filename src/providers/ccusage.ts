@@ -1,7 +1,9 @@
 import dayjs from 'dayjs';
 import {z} from 'zod';
 
+import {normalizeAndLogError} from '../core/error-utils';
 import {calculateCost} from '../core/pricing';
+import {spawnCommandAndParseJson} from '../core/spawn-utils';
 import {
   type UnifiedMessage,
   type UsageProviderAdapter,
@@ -82,11 +84,13 @@ export const detectProviderFromModel = (modelName: string): string => {
   return 'ccusage';
 };
 
-export const convertCcUsageExportToMessages = (
+/**
+ * Collects all daily entries from CCUsage export data
+ * Extracts entries from both the top-level daily array and nested sections
+ */
+function collectDailyEntries(
   ccusageData: CCUsageExportData,
-): UnifiedMessage[] => {
-  const unifiedMessages: UnifiedMessage[] = [];
-
+): z.infer<typeof CCUsageDailySchema>[] {
   const dailyEntries: z.infer<typeof CCUsageDailySchema>[] = [];
 
   if (ccusageData.daily) {
@@ -104,6 +108,39 @@ export const convertCcUsageExportToMessages = (
     }
   }
 
+  return dailyEntries;
+}
+
+/**
+ * Calculates cost with fallback - uses provided cost if > 0, otherwise calculates it
+ */
+function calculateCostOrUseFallback(
+  existingCost: number,
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  cacheCreationTokens: number,
+  cacheReadTokens: number,
+  provider: string,
+): number {
+  return existingCost > 0
+    ? existingCost
+    : calculateCost(
+        model,
+        inputTokens,
+        outputTokens,
+        cacheCreationTokens,
+        cacheReadTokens,
+        provider,
+      );
+}
+
+export const convertCcUsageExportToMessages = (
+  ccusageData: CCUsageExportData,
+): UnifiedMessage[] => {
+  const unifiedMessages: UnifiedMessage[] = [];
+  const dailyEntries = collectDailyEntries(ccusageData);
+
   for (const dailyEntry of dailyEntries) {
     const breakdowns = dailyEntry.modelBreakdowns;
     for (let i = 0; i < breakdowns.length; i++) {
@@ -114,17 +151,15 @@ export const convertCcUsageExportToMessages = (
       const timestamp = dayjs(`${dailyEntry.date} 12:00:00`).valueOf();
       const provider = detectProviderFromModel(breakdown.modelName);
 
-      const cost =
-        breakdown.cost > 0
-          ? breakdown.cost
-          : calculateCost(
-              breakdown.modelName,
-              breakdown.inputTokens,
-              breakdown.outputTokens,
-              breakdown.cacheCreationTokens,
-              breakdown.cacheReadTokens,
-              provider,
-            );
+      const cost = calculateCostOrUseFallback(
+        breakdown.cost,
+        breakdown.modelName,
+        breakdown.inputTokens,
+        breakdown.outputTokens,
+        breakdown.cacheCreationTokens,
+        breakdown.cacheReadTokens,
+        provider,
+      );
 
       unifiedMessages.push({
         id: messageId,
@@ -150,40 +185,22 @@ export const convertCcUsageExportToUsageEntries = (
   ccusageData: CCUsageExportData,
 ): UsageEntry[] => {
   const usageEntries: UsageEntry[] = [];
-
-  const dailyEntries: z.infer<typeof CCUsageDailySchema>[] = [];
-
-  if (ccusageData.daily) {
-    dailyEntries.push(...ccusageData.daily);
-  }
-
-  for (const [key, value] of Object.entries(ccusageData)) {
-    if (key === 'daily' || key === 'totals') {
-      continue;
-    }
-
-    const section = CCUsageSectionSchema.safeParse(value);
-    if (section.success && section.data.daily) {
-      dailyEntries.push(...section.data.daily);
-    }
-  }
+  const dailyEntries = collectDailyEntries(ccusageData);
 
   for (const dailyEntry of dailyEntries) {
     const breakdowns = dailyEntry.modelBreakdowns;
     for (const breakdown of breakdowns) {
       const provider = detectProviderFromModel(breakdown.modelName);
 
-      const cost =
-        breakdown.cost > 0
-          ? breakdown.cost
-          : calculateCost(
-              breakdown.modelName,
-              breakdown.inputTokens,
-              breakdown.outputTokens,
-              breakdown.cacheCreationTokens,
-              breakdown.cacheReadTokens,
-              provider,
-            );
+      const cost = calculateCostOrUseFallback(
+        breakdown.cost,
+        breakdown.modelName,
+        breakdown.inputTokens,
+        breakdown.outputTokens,
+        breakdown.cacheCreationTokens,
+        breakdown.cacheReadTokens,
+        provider,
+      );
 
       usageEntries.push({
         date: dailyEntry.date,
@@ -209,38 +226,14 @@ export class CCUsageAdapter implements UsageProviderAdapter {
 
   async fetchUsageEntries(): Promise<UsageEntry[]> {
     try {
-      const proc = Bun.spawn(['ccusage', 'daily', '--json'], {
-        stdout: 'pipe',
-        stderr: 'pipe',
-      });
+      const ccusageData = await spawnCommandAndParseJson(
+        ['ccusage', 'daily', '--json'],
+        CCUsageExportSchema,
+      );
 
-      const output = await new Response(proc.stdout).text();
-      const exitCode = await proc.exited;
-
-      if (exitCode !== 0) {
-        const errorOutput = await new Response(proc.stderr).text();
-        throw new Error(
-          `ccusage command failed with exit code ${exitCode}: ${errorOutput}`,
-        );
-      }
-
-      const data: unknown = JSON.parse(output);
-      const parsed = CCUsageExportSchema.safeParse(data);
-
-      if (!parsed.success) {
-        console.warn('Failed to parse ccusage output:', parsed.error);
-        return [];
-      }
-
-      return convertCcUsageExportToUsageEntries(parsed.data);
+      return convertCcUsageExportToUsageEntries(ccusageData);
     } catch (error: unknown) {
-      const normalizedError =
-        error instanceof Error ? error : new Error(String(error));
-      console.error('Failed to fetch CCUsage data:', normalizedError.message);
-      if (normalizedError.stack) {
-        console.error(normalizedError.stack);
-      }
-      throw normalizedError;
+      throw normalizeAndLogError('to fetch CCUsage data', error);
     }
   }
 }

@@ -1,6 +1,8 @@
 import dayjs from 'dayjs';
 import {z} from 'zod';
 
+import {normalizeAndLogError} from '../core/error-utils';
+import {spawnCommandAndParseJson} from '../core/spawn-utils';
 import {type UsageProviderAdapter, type UsageEntry} from '../core/types';
 
 const CodexModelSchema = z.object({
@@ -43,30 +45,10 @@ export class CodexAdapter implements UsageProviderAdapter {
     const usageEntries: UsageEntry[] = [];
 
     try {
-      const proc = Bun.spawn(['bunx', '@ccusage/codex@latest', '--json'], {
-        stdout: 'pipe',
-        stderr: 'pipe',
-      });
-
-      const output = await new Response(proc.stdout).text();
-      const exitCode = await proc.exited;
-
-      if (exitCode !== 0) {
-        const errorOutput = await new Response(proc.stderr).text();
-        throw new Error(
-          `codex command failed with exit code ${exitCode}: ${errorOutput}`,
-        );
-      }
-
-      const data: unknown = JSON.parse(output);
-      const parsed = CodexExportSchema.safeParse(data);
-
-      if (!parsed.success) {
-        console.warn('Failed to parse codex output:', parsed.error);
-        return usageEntries;
-      }
-
-      const codexData = parsed.data;
+      const codexData = await spawnCommandAndParseJson(
+        ['bunx', '@ccusage/codex@latest', '--json'],
+        CodexExportSchema,
+      );
 
       for (const dailyEntry of codexData.daily) {
         const modelEntries = Object.entries(dailyEntry.models);
@@ -96,13 +78,7 @@ export class CodexAdapter implements UsageProviderAdapter {
         }
       }
     } catch (error: unknown) {
-      const normalizedError =
-        error instanceof Error ? error : new Error(String(error));
-      console.error('Failed to fetch Codex data:', normalizedError.message);
-      if (normalizedError.stack) {
-        console.error(normalizedError.stack);
-      }
-      throw normalizedError;
+      throw normalizeAndLogError('to fetch Codex data', error);
     }
 
     return usageEntries;

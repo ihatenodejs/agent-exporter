@@ -89,7 +89,7 @@ export const DashboardContainer = ({
         // Ignore errors during initial load
       });
     }
-  }, []);
+  }, [handleRefresh]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -99,7 +99,7 @@ export const DashboardContainer = ({
     }, 30000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [handleRefresh]);
 
   if (!data) {
     return React.createElement(Text, {}, 'Loading...');

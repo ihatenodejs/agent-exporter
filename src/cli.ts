@@ -7,11 +7,13 @@ import {join, resolve} from 'path';
 import {Command} from 'commander';
 import React from 'react';
 
+import packageJson from '../package.json';
 import {fillMissingDates} from './core/aggregator';
 import {
   getDateRangeDescription,
   getDateRangeForPeriod,
   isValidDateString,
+  validateAndResolveDateRange,
   type TimePeriod,
 } from './core/date-utils';
 import {computeUsageSummary, type UsageSummary} from './core/statistics';
@@ -29,7 +31,7 @@ import {GeminiAdapter} from './providers/gemini';
 import {OpenCodeAdapter} from './providers/opencode';
 import {QwenAdapter} from './providers/qwen';
 
-import type {ProviderAdapter, UnifiedMessage} from './core/types';
+import type {ProviderAdapter, UnifiedMessage, UsageEntry} from './core/types';
 
 const program = new Command();
 
@@ -74,9 +76,6 @@ interface RangeCommandOptions extends StatsCommandOptions {
   readonly end: string;
 }
 
-const VALID_PERIODS = ['daily', 'weekly', 'monthly', 'yearly'] as const;
-const ALLOWED_PERIODS_TEXT = VALID_PERIODS.join(', ');
-
 type SingleProvider = Exclude<ProviderOption, 'all'>;
 
 const createProviderAdapter: Record<SingleProvider, () => ProviderAdapter> = {
@@ -96,9 +95,6 @@ const buildAdapters = (provider: ProviderOption): ProviderAdapter[] => {
 
   return [createProviderAdapter[provider]()];
 };
-
-const isTimePeriod = (value: string): value is TimePeriod =>
-  (VALID_PERIODS as readonly string[]).includes(value);
 
 const toError = (value: unknown): Error => {
   if (value instanceof Error) {
@@ -126,10 +122,43 @@ const logError = (context: string, value: unknown): void => {
   }
 };
 
+/**
+ * Transform usage entries to unified messages
+ */
+const transformUsageEntriesToMessages = (
+  adapter: {name: string},
+  usageEntries: UsageEntry[],
+): UnifiedMessage[] => {
+  return usageEntries.flatMap((entry) => {
+    const message: UnifiedMessage = {
+      id: `${adapter.name}-${entry.date}-${entry.model}`,
+      sessionId: `${adapter.name}-session-${entry.date}`,
+      provider: entry.provider,
+      model: entry.model,
+      inputTokens: entry.inputTokens,
+      outputTokens: entry.outputTokens,
+      reasoningTokens: entry.reasoningTokens,
+      cacheCreationTokens: entry.cacheCreationTokens,
+      cacheReadTokens: entry.cacheReadTokens,
+      cost: entry.totalCost,
+      timestamp: new Date(entry.date).getTime(),
+      date: entry.date,
+    };
+    return entry.entryCount
+      ? Array(entry.entryCount)
+          .fill(message)
+          .map((_, i) => ({
+            ...message,
+            id: `${message.id}-${i}`,
+          }))
+      : [message];
+  });
+};
+
 program
-  .name('agent-exporter')
-  .description('AI agent usage exporter for tracking and analyzing LLM costs')
-  .version('1.0.0');
+  .name(packageJson.name)
+  .description(packageJson.description)
+  .version(packageJson.version);
 
 const VALID_PROVIDERS = [
   'opencode',
@@ -176,30 +205,7 @@ program
 
         if (adapter.dataType === 'usage entries') {
           const usageEntries = await adapter.fetchUsageEntries();
-          messages = usageEntries.flatMap((entry) => {
-            const message: UnifiedMessage = {
-              id: `${adapter.name}-${entry.date}-${entry.model}`,
-              sessionId: `${adapter.name}-session-${entry.date}`,
-              provider: entry.provider,
-              model: entry.model,
-              inputTokens: entry.inputTokens,
-              outputTokens: entry.outputTokens,
-              reasoningTokens: entry.reasoningTokens,
-              cacheCreationTokens: entry.cacheCreationTokens,
-              cacheReadTokens: entry.cacheReadTokens,
-              cost: entry.totalCost,
-              timestamp: new Date(entry.date).getTime(),
-              date: entry.date,
-            };
-            return entry.entryCount
-              ? Array(entry.entryCount)
-                  .fill(message)
-                  .map((_, i) => ({
-                    ...message,
-                    id: `${message.id}-${i}`,
-                  }))
-              : [message];
-          });
+          messages = transformUsageEntriesToMessages(adapter, usageEntries);
           itemCount = usageEntries.length;
         } else {
           messages = await adapter.fetchMessages();
@@ -316,37 +322,20 @@ program
           process.exit(1);
         }
 
-        let startDate = options.start;
-        let endDate = options.end;
         const {period} = options;
+        const dateRange = validateAndResolveDateRange(
+          period,
+          options.start,
+          options.end,
+        );
+        const startDate = dateRange.startDate;
+        const endDate = dateRange.endDate;
 
         if (period) {
-          if (!isTimePeriod(period)) {
-            console.error(
-              `Invalid period: ${period}. Must be one of: ${ALLOWED_PERIODS_TEXT}`,
-            );
-            process.exit(1);
-          }
-
-          const range = getDateRangeForPeriod(period);
-          startDate = range.start;
-          endDate = range.end;
           console.log(
-            `Exporting ${period} data (${getDateRangeDescription(range.start, range.end)})...`,
+            `Exporting ${period} data (${getDateRangeDescription(startDate, endDate)})...`,
           );
         } else if (startDate && endDate) {
-          if (!isValidDateString(startDate)) {
-            console.error(
-              `Invalid start date: ${startDate}. Use YYYY-MM-DD format.`,
-            );
-            process.exit(1);
-          }
-          if (!isValidDateString(endDate)) {
-            console.error(
-              `Invalid end date: ${endDate}. Use YYYY-MM-DD format.`,
-            );
-            process.exit(1);
-          }
           console.log(
             `Exporting data for ${getDateRangeDescription(startDate, endDate)}...`,
           );
@@ -386,33 +375,14 @@ program
   .option('-d, --db <path>', 'Database path', DEFAULT_DB_PATH)
   .action(async (options: JsonCommandOptions): Promise<void> => {
     try {
-      let startDate = options.start;
-      let endDate = options.end;
       const {period} = options;
-
-      if (period) {
-        if (!isTimePeriod(period)) {
-          console.error(
-            `Invalid period: ${period}. Must be one of: ${ALLOWED_PERIODS_TEXT}`,
-          );
-          process.exit(1);
-        }
-
-        const range = getDateRangeForPeriod(period);
-        startDate = range.start;
-        endDate = range.end;
-      } else if (startDate && endDate) {
-        if (!isValidDateString(startDate)) {
-          console.error(
-            `Invalid start date: ${startDate}. Use YYYY-MM-DD format.`,
-          );
-          process.exit(1);
-        }
-        if (!isValidDateString(endDate)) {
-          console.error(`Invalid end date: ${endDate}. Use YYYY-MM-DD format.`);
-          process.exit(1);
-        }
-      }
+      const dateRange = validateAndResolveDateRange(
+        period,
+        options.start,
+        options.end,
+      );
+      const startDate = dateRange.startDate;
+      const endDate = dateRange.endDate;
 
       const db = initializeDatabase(options.db);
       const dbManager = new DatabaseManager(db);
@@ -553,30 +523,7 @@ async function displayDashboard(
 
           if (adapter.dataType === 'usage entries') {
             const usageEntries = await adapter.fetchUsageEntries();
-            messages = usageEntries.flatMap((entry) => {
-              const message: UnifiedMessage = {
-                id: `${adapter.name}-${entry.date}-${entry.model}`,
-                sessionId: `${adapter.name}-session-${entry.date}`,
-                provider: entry.provider,
-                model: entry.model,
-                inputTokens: entry.inputTokens,
-                outputTokens: entry.outputTokens,
-                reasoningTokens: entry.reasoningTokens,
-                cacheCreationTokens: entry.cacheCreationTokens,
-                cacheReadTokens: entry.cacheReadTokens,
-                cost: entry.totalCost,
-                timestamp: new Date(entry.date).getTime(),
-                date: entry.date,
-              };
-              return entry.entryCount
-                ? Array(entry.entryCount)
-                    .fill(message)
-                    .map((_, i) => ({
-                      ...message,
-                      id: `${message.id}-${i}`,
-                    }))
-                : [message];
-            });
+            messages = transformUsageEntriesToMessages(adapter, usageEntries);
           } else {
             messages = await adapter.fetchMessages();
           }
