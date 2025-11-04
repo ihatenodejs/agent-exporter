@@ -122,7 +122,7 @@ describe('CodexAdapter', () => {
     expect(messages[1].timestamp).toBe(new Date('2024-01-05').getTime());
   });
 
-  it('throws when the codex command exits with an error', () => {
+  it('throws when the codex command exits with an error', async () => {
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {
       // Mock implementation intentionally empty
     });
@@ -136,9 +136,17 @@ describe('CodexAdapter', () => {
 
     const adapter = new CodexAdapter();
 
-    expect(adapter.fetchUsageEntries()).rejects.toThrow(
-      /codex command failed with exit code 1/,
-    );
+    let errorThrown = false;
+    try {
+      await adapter.fetchUsageEntries();
+    } catch (error) {
+      errorThrown = true;
+      expect((error as Error).message).toMatch(
+        /codex command failed with exit code 1/,
+      );
+    }
+
+    expect(errorThrown).toBe(true);
     expect(spawnSpy).toHaveBeenCalledTimes(1);
     expect(errorSpy).toHaveBeenCalled();
   });
