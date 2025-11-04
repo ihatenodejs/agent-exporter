@@ -10,6 +10,9 @@ agent-exporter/
 │   │   ├── statistics.ts          # Period statistics calculations
 │   │   ├── pricing.ts             # Pricing integration helpers
 │   │   ├── date-utils.ts          # Date range helpers
+│   │   ├── error-utils.ts         # Error handling utilities
+│   │   ├── fs-utils.ts            # File system utilities
+│   │   ├── spawn-utils.ts         # Command execution utilities
 │   │   ├── __tests/               # Unit tests for core helpers
 │   │   └── database/
 │   │       └── prices.ts          # Fallback pricing database
@@ -27,7 +30,10 @@ agent-exporter/
 │   │   └── json.ts                # JSON exporter
 │   └── ui/                        # Terminal UI components
 │       ├── stats-app.tsx          # Interactive stats dashboard
-│       └── Table.tsx              # Generic table renderer
+│       ├── Dashboard.tsx          # Main dashboard component
+│       ├── DashboardContainer.tsx # Dashboard container
+│       ├── Table.tsx              # Generic table renderer
+│       └── formatters.ts          # UI formatting utilities
 ├── tests/                         # Test suites (pricing coverage)
 │   └── pricing.test.ts
 ├── dist/                          # Compiled binaries (bun build output)

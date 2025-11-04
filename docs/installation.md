@@ -21,7 +21,7 @@ Now, we can install `agent-exporter` from npm or from source.
 ### Option 1: Install from npm
 
 ```bash
-bun add agent-exporter
+bun install -g agent-exporter
 ```
 
 ### Option 2: Install from source
