@@ -2,8 +2,9 @@ name: Quality Checks
 
 on:
   push:
-    branches-ignore:
+    branches:
       - main
+      - 'v*'
   pull_request:
 
 jobs:

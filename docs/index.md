@@ -22,3 +22,4 @@ Welcome to the documentation for Agent Exporter! Here you will find guides to he
 - [Development](./development.md)
 - [Export Formats](./export-formats.md)
 - [Project Structure](./project-structure.md)
+- [CI/CD Workflows](./cicd-workflows.md)
