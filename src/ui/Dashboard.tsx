@@ -186,7 +186,6 @@ export const Dashboard = ({
       });
     };
 
-    handleResize();
     stdout.on('resize', handleResize);
 
     return () => {
