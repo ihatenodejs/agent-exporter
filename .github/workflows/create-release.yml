@@ -2,7 +2,7 @@ name: Create GitHub Release
 
 on:
   push:
-    tags:
+    branches:
       - 'v*'
   workflow_dispatch:
 
@@ -10,6 +10,7 @@ jobs:
   release:
     name: Create Release
     runs-on: ubuntu-latest
+    if: startsWith(github.event.head_commit.message, 'release:')
     permissions:
       contents: write
       pull-requests: write
@@ -40,26 +41,24 @@ jobs:
           bunx tsc --noEmit
 
       - name: Build
-        run: bun run build
+        run: bun run build:all
 
-      - name: Determine version and create release
+      - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION=$(node -p "require('./package.json').version")
 
-          if git tag --list | grep -q "^v$VERSION$"; then
-            echo "Tag v$VERSION already exists, skipping release creation."
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
+            echo "Release v$VERSION already exists, skipping."
             exit 0
           fi
-
-          git config --global user.name 'github-actions[bot]'
-          git config --global user.email 'github-actions[bot]@users.noreply.github.com'
-          git tag "v$VERSION"
-          git push origin "v$VERSION"
 
           gh release create "v$VERSION" \
             --title "v$VERSION" \
             --generate-notes \
             --latest \
-            ./dist/agent-exporter
+            ./dist/agent-exporter-linux-x64 \
+            ./dist/agent-exporter-linux-arm64 \
+            ./dist/agent-exporter-darwin-x64 \
+            ./dist/agent-exporter-darwin-arm64

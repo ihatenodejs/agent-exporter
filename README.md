@@ -6,6 +6,13 @@ Export usage statistics from various agents.
 
 For detailed information on installation, usage, and development, please see the [full documentation](./docs/index.md).
 
+## Install
+
+```bash
+bun install -g agent-exporter
+npm install -g agent-exporter # or use npm
+```
+
 ## Supported Providers
 
 - OpenCode

@@ -31,7 +31,7 @@ jobs:
           bunx tsc --noEmit
 
       - name: Build
-        run: bun run build
+        run: bun run build:all
 
       - name: Check if version exists on npm
         id: check_npm

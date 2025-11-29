@@ -9,11 +9,17 @@
   },
   "files": [
     "dist",
+    "scripts",
     "README.md",
     "LICENSE"
   ],
   "scripts": {
-    "build": "bun build src/cli.ts --compile --minify --outfile dist/agent-exporter",
+    "build": "bun run build:all",
+    "build:all": "bun run build:linux-x64 && bun run build:linux-arm64 && bun run build:darwin-x64 && bun run build:darwin-arm64",
+    "build:linux-x64": "bun build src/cli.ts --compile --minify --target=bun-linux-x64 --outfile dist/agent-exporter-linux-x64",
+    "build:linux-arm64": "bun build src/cli.ts --compile --minify --target=bun-linux-arm64 --outfile dist/agent-exporter-linux-arm64",
+    "build:darwin-x64": "bun build src/cli.ts --compile --minify --target=bun-darwin-x64 --outfile dist/agent-exporter-darwin-x64",
+    "build:darwin-arm64": "bun build src/cli.ts --compile --minify --target=bun-darwin-arm64 --outfile dist/agent-exporter-darwin-arm64",
     "dev": "bun run src/cli.ts",
     "test": "bun test",
     "link": "bun link",
@@ -23,7 +29,8 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "bun run build"
+    "prepublishOnly": "bun run build",
+    "postinstall": "node scripts/postinstall.cjs"
   },
   "keywords": [
     "ai",
@@ -54,7 +61,7 @@
     "bun": ">=1.0.0"
   },
   "dependencies": {
-    "@pydantic/genai-prices": "^0.0.35",
+    "@pydantic/genai-prices": "^0.0.47",
     "chalk": "^5.6.2",
     "commander": "^14.0.2",
     "dayjs": "^1.11.19",
