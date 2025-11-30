@@ -19,6 +19,10 @@ export interface ModelLabelEntry {
 export const MODEL_LABELS: ModelLabelEntry[] = [
   // Anthropic
   {
+    model: 'claude-opus-4-5-20251101',
+    label: 'Claude Opus 4.5 (2025-11-01)',
+  },
+  {
     model: 'claude-opus-4-1-20250805',
     label: 'Claude Opus 4.1 (2025-08-05)',
   },
