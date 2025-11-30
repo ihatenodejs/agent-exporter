@@ -152,6 +152,55 @@ export const FALLBACK_PRICES: FallbackModelPrice[] = [
     cacheWritePer1M: 1.25,
     cacheReadPer1M: 0.1,
   },
+  {
+    model: ['claude-opus-4-1', 'claude-opus-4.1'],
+    inputPer1M: 15,
+    outputPer1M: 75,
+    cacheWritePer1M: 18.75,
+    cacheReadPer1M: 1.5,
+  },
+  {
+    model: 'claude-sonnet-4',
+    inputPer1M: 3,
+    outputPer1M: 15,
+    cacheWritePer1M: 3.75,
+    cacheReadPer1M: 0.3,
+  },
+  {
+    model: 'claude-opus-4',
+    inputPer1M: 15,
+    outputPer1M: 75,
+    cacheWritePer1M: 18.75,
+    cacheReadPer1M: 1.5,
+  },
+  {
+    model: ['claude-sonnet-3-7', 'claude-sonnet-3.7'],
+    inputPer1M: 3,
+    outputPer1M: 15,
+    cacheWritePer1M: 3.75,
+    cacheReadPer1M: 0.3,
+  },
+  {
+    model: ['claude-haiku-3-5', 'claude-haiku-3.5'],
+    inputPer1M: 0.8,
+    outputPer1M: 4,
+    cacheWritePer1M: 1,
+    cacheReadPer1M: 0.08,
+  },
+  {
+    model: 'claude-opus-3',
+    inputPer1M: 15,
+    outputPer1M: 75,
+    cacheWritePer1M: 18.75,
+    cacheReadPer1M: 1.5,
+  },
+  {
+    model: 'claude-haiku-3',
+    inputPer1M: 0.25,
+    outputPer1M: 1.25,
+    cacheWritePer1M: 0.3,
+    cacheReadPer1M: 0.03,
+  },
 ];
 
 /**
