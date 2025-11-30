@@ -30,6 +30,9 @@ jobs:
       - name: Check version sync
         run: node scripts/sync-versions.cjs --check
 
+      - name: Generate version info
+        run: bun run generate-version
+
       - name: Run quality checks
         run: |
           bunx eslint .
