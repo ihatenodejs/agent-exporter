@@ -52,7 +52,7 @@ describe('CLI ccusage ingestion sample', () => {
     const expectedTimestamp = dayjs('2025-01-01 12:00:00').valueOf();
 
     expect(message).toMatchObject({
-      id: 'ccusage-2025-01-01-claude-sonnet-4-5-20250929-0',
+      id: 'ccusage-2025-01-01-claude-sonnet-4-5-20250929-120-240-30-10',
       sessionId: 'ccusage-session-2025-01-01',
       provider: 'anthropic',
       model: 'claude-sonnet-4-5-20250929',

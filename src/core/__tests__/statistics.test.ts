@@ -70,9 +70,10 @@ describe('computeUsageSummary', () => {
         date: '2024-01-01',
         inputTokens: 150,
         outputTokens: 100,
+        reasoningTokens: 0,
         cacheCreationTokens: 10,
         cacheReadTokens: 5,
-        totalTokens: 265,
+        totalTokens: 250,
         totalCost: 1.2,
         modelsUsed: ['openai:gpt-4'],
         modelBreakdowns: [],
@@ -81,6 +82,7 @@ describe('computeUsageSummary', () => {
         date: '2024-01-02',
         inputTokens: 80,
         outputTokens: 40,
+        reasoningTokens: 0,
         cacheCreationTokens: 0,
         cacheReadTokens: 0,
         totalTokens: 120,
@@ -92,9 +94,10 @@ describe('computeUsageSummary', () => {
         date: '2024-01-03',
         inputTokens: 60,
         outputTokens: 50,
+        reasoningTokens: 0,
         cacheCreationTokens: 5,
         cacheReadTokens: 0,
-        totalTokens: 115,
+        totalTokens: 110,
         totalCost: 0.9,
         modelsUsed: ['anthropic:claude-3'],
         modelBreakdowns: [],
@@ -105,21 +108,22 @@ describe('computeUsageSummary', () => {
 
     expect(summary.messageCount).toBe(4);
     expect(summary.totals.totalCost).toBeCloseTo(2.1, 5);
-    expect(summary.totals.totalTokens).toBe(500);
+    expect(summary.totals.totalTokens).toBe(480);
     expect(summary.activeDays).toBe(2);
     expect(summary.totalDays).toBe(3);
     expect(summary.averageDailyCost).toBeCloseTo(0.7, 5);
-    expect(summary.averageDailyTokens).toBeCloseTo(166.6667, 4);
+    expect(summary.averageDailyTokens).toBeCloseTo(160, 4);
 
     expect(summary.providerRows).toHaveLength(2);
     expect(summary.providerRows[0]).toMatchObject({
-      name: 'codex',
+      name: 'openai',
       messageCount: 3,
       inputTokens: 210,
       outputTokens: 120,
+      reasoningTokens: 0,
       cacheCreationTokens: 10,
       cacheReadTokens: 10,
-      totalTokens: 350,
+      totalTokens: 330,
       totalCost: 0.75,
     });
     expect(summary.providerRows[1]).toMatchObject({
@@ -137,7 +141,7 @@ describe('computeUsageSummary', () => {
     expect(summary.modelRows[1]).toMatchObject({
       name: 'gpt-4',
       messageCount: 2,
-      totalTokens: 280,
+      totalTokens: 270,
       totalCost: 0.5,
     });
   });

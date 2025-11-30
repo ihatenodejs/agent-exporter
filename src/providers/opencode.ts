@@ -45,6 +45,15 @@ export class OpenCodeAdapter implements MessagesProviderAdapter {
       const allDirs = await getDirectories(pathValidation.resolvedPath);
       const sessionDirs = allDirs.filter((name) => name.startsWith('ses_'));
 
+      const messagesBySession = new Map<
+        string,
+        {
+          data: ReturnType<typeof MessageSchema.parse>;
+          timestamp: number;
+          cumulativeInput: number;
+        }[]
+      >();
+
       for (const sessionDir of sessionDirs) {
         const sessionPath = join(pathValidation.resolvedPath, sessionDir);
 
@@ -71,40 +80,21 @@ export class OpenCodeAdapter implements MessagesProviderAdapter {
                 continue;
               }
 
-              const inputTokens = message.tokens.input;
-              const outputTokens = message.tokens.output;
-              const reasoningTokens = message.tokens.reasoning ?? 0;
-              const cacheCreationTokens = message.tokens.cache?.write ?? 0;
-              const cacheReadTokens = message.tokens.cache?.read ?? 0;
-
-              const model = message.modelID ?? 'unknown';
-              const cost =
-                message.cost ??
-                calculateCost(
-                  model,
-                  inputTokens,
-                  outputTokens,
-                  cacheCreationTokens,
-                  cacheReadTokens,
-                );
-
               const timestamp = message.time.completed ?? message.time.created;
-              const date = dayjs(timestamp).format('YYYY-MM-DD');
+              const sessionId = message.sessionID;
 
-              unifiedMessages.push({
-                id: message.id,
-                sessionId: message.sessionID,
-                provider: message.providerID ?? 'opencode',
-                model,
-                inputTokens,
-                outputTokens,
-                reasoningTokens,
-                cacheCreationTokens,
-                cacheReadTokens,
-                cost,
-                timestamp,
-                date,
-              });
+              if (!messagesBySession.has(sessionId)) {
+                messagesBySession.set(sessionId, []);
+              }
+
+              const sessionMessages = messagesBySession.get(sessionId);
+              if (sessionMessages) {
+                sessionMessages.push({
+                  data: message,
+                  timestamp,
+                  cumulativeInput: message.tokens.input,
+                });
+              }
             } catch (error) {
               logProviderError(
                 {
@@ -127,6 +117,53 @@ export class OpenCodeAdapter implements MessagesProviderAdapter {
             },
             error,
           );
+        }
+      }
+
+      for (const [sessionId, messages] of messagesBySession) {
+        messages.sort((a, b) => a.timestamp - b.timestamp);
+
+        let prevCumulativeInput = 0;
+
+        for (const {data: message, timestamp, cumulativeInput} of messages) {
+          // tokens is guaranteed to exist because we filtered for it earlier
+          if (!message.tokens) continue;
+
+          const deltaInput = cumulativeInput - prevCumulativeInput;
+          const outputTokens = message.tokens.output;
+          const reasoningTokens = message.tokens.reasoning ?? 0;
+          const cacheCreationTokens = message.tokens.cache?.write ?? 0;
+          const cacheReadTokens = message.tokens.cache?.read ?? 0;
+
+          const model = message.modelID ?? 'unknown';
+          const cost =
+            message.cost ??
+            calculateCost(
+              model,
+              deltaInput,
+              outputTokens,
+              cacheCreationTokens,
+              cacheReadTokens,
+            );
+
+          const date = dayjs(timestamp).format('YYYY-MM-DD');
+
+          unifiedMessages.push({
+            id: message.id,
+            sessionId,
+            provider: message.providerID ?? 'opencode',
+            model,
+            inputTokens: deltaInput,
+            outputTokens,
+            reasoningTokens,
+            cacheCreationTokens,
+            cacheReadTokens,
+            cost,
+            timestamp,
+            date,
+          });
+
+          prevCumulativeInput = cumulativeInput;
         }
       }
     } catch (error: unknown) {

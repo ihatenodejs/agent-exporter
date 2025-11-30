@@ -99,12 +99,15 @@ export class GeminiAdapter implements MessagesProviderAdapter {
 
               const session = parsed.data;
 
+              let prevCumulativeInput = 0;
+
               for (const message of session.messages) {
                 if (message.type !== 'gemini' || !message.tokens) {
                   continue;
                 }
 
-                const inputTokens = message.tokens.input;
+                const cumulativeInput = message.tokens.input;
+                const deltaInput = cumulativeInput - prevCumulativeInput;
                 const outputTokens = message.tokens.output;
                 const reasoningTokens = message.tokens.thoughts ?? 0;
                 const cacheCreationTokens = 0;
@@ -113,7 +116,7 @@ export class GeminiAdapter implements MessagesProviderAdapter {
                 const model = message.model ?? 'unknown';
                 const cost = calculateCost(
                   model,
-                  inputTokens,
+                  deltaInput,
                   outputTokens,
                   cacheCreationTokens,
                   cacheReadTokens,
@@ -128,7 +131,7 @@ export class GeminiAdapter implements MessagesProviderAdapter {
                   sessionId: session.sessionId,
                   provider: 'gemini',
                   model,
-                  inputTokens,
+                  inputTokens: deltaInput,
                   outputTokens,
                   reasoningTokens,
                   cacheCreationTokens,
@@ -137,6 +140,8 @@ export class GeminiAdapter implements MessagesProviderAdapter {
                   timestamp,
                   date,
                 });
+
+                prevCumulativeInput = cumulativeInput;
               }
             } catch (error) {
               logProviderError(

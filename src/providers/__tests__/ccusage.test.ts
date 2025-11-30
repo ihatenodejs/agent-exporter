@@ -89,7 +89,7 @@ describe('CCUsage utilities', () => {
     const secondTimestamp = dayjs('2024-02-02 12:00:00').valueOf();
 
     expect(first).toMatchObject({
-      id: 'ccusage-2024-02-01-claude-3-opus-20240229-0',
+      id: 'ccusage-2024-02-01-claude-3-opus-20240229-150-300-20-5',
       sessionId: 'ccusage-session-2024-02-01',
       provider: 'anthropic',
       model: 'claude-3-opus-20240229',
@@ -104,7 +104,7 @@ describe('CCUsage utilities', () => {
     expect(first.timestamp).toBe(firstTimestamp);
 
     expect(second).toMatchObject({
-      id: 'ccusage-2024-02-02-gpt-4.1-mini-0',
+      id: 'ccusage-2024-02-02-gpt-4.1-mini-80-160-10-4',
       sessionId: 'ccusage-session-2024-02-02',
       provider: 'openai',
       model: 'gpt-4.1-mini',

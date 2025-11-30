@@ -4,22 +4,30 @@ Export usage statistics from various agents.
 
 ## Documentation
 
-For detailed information on installation, usage, and development, please see the [full documentation](./docs/index.md).
+For detailed information on installation, usage, and development, please see the [full documentation](https://github.com/ihatenodejs/agent-exporter/blob/main/docs/index.md).
+
+## Supported Providers
+
+- OpenCode
+- Claude Code (via [ccusage](https://github.com/ryoppippi/ccusage))
+- Codex (via [@ccusage/codex](https://www.npmjs.com/package/@ccusage/codex))
+- Gemini CLI
+- Qwen CLI
+- Kimi CLI
 
 ## Install
 
 ```bash
 bun install -g agent-exporter
-npm install -g agent-exporter # or use npm
 ```
 
-## Supported Providers
+---
 
-- OpenCode
-- Claude Code (via `ccusage`)
-- Codex (via `@ccusage/codex`)
-- Gemini CLI
-- Qwen CLI
+Make sure you have [Bun](https://bun.sh) installed. If you haven't already installed it, you can do so by running:
+
+```bash
+curl -fsSL https://bun.sh/install | bash
+```
 
 ## License
 

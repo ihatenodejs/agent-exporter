@@ -47,6 +47,7 @@ export interface DailyUsage {
   date: string;
   inputTokens: number;
   outputTokens: number;
+  reasoningTokens: number;
   cacheCreationTokens: number;
   cacheReadTokens: number;
   totalTokens: number;
@@ -59,6 +60,7 @@ export interface ModelBreakdown {
   modelName: string;
   inputTokens: number;
   outputTokens: number;
+  reasoningTokens: number;
   cacheCreationTokens: number;
   cacheReadTokens: number;
   cost: number;
@@ -69,6 +71,7 @@ export interface CCUsageExport {
   totals: {
     inputTokens: number;
     outputTokens: number;
+    reasoningTokens: number;
     cacheCreationTokens: number;
     cacheReadTokens: number;
     totalCost: number;

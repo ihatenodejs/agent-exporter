@@ -2,7 +2,7 @@ import {generateCCUsageExport} from './aggregator';
 
 import type {CCUsageExport, DailyUsage, UnifiedMessage} from './types';
 
-const PROVIDER_ALIASES = new Map<string, string>([['openai', 'codex']]);
+const PROVIDER_ALIASES = new Map<string, string>([]);
 
 const getCanonicalProviderName = (provider: string): string => {
   const alias = PROVIDER_ALIASES.get(provider.toLowerCase());
@@ -14,6 +14,7 @@ export interface AggregatedUsageRow {
   messageCount: number;
   inputTokens: number;
   outputTokens: number;
+  reasoningTokens: number;
   cacheCreationTokens: number;
   cacheReadTokens: number;
   totalTokens: number;
@@ -38,6 +39,7 @@ function createEmptyRow(name: string): AggregatedUsageRow {
     messageCount: 0,
     inputTokens: 0,
     outputTokens: 0,
+    reasoningTokens: 0,
     cacheCreationTokens: 0,
     cacheReadTokens: 0,
     totalTokens: 0,
@@ -47,11 +49,7 @@ function createEmptyRow(name: string): AggregatedUsageRow {
 }
 
 function finalizeRow(row: AggregatedUsageRow): void {
-  row.totalTokens =
-    row.inputTokens +
-    row.outputTokens +
-    row.cacheCreationTokens +
-    row.cacheReadTokens;
+  row.totalTokens = row.inputTokens + row.outputTokens + row.reasoningTokens;
 }
 
 function accumulateMessage(
@@ -64,6 +62,9 @@ function accumulateMessage(
     : 0;
   row.outputTokens += Number.isFinite(message.outputTokens)
     ? message.outputTokens
+    : 0;
+  row.reasoningTokens += Number.isFinite(message.reasoningTokens)
+    ? message.reasoningTokens
     : 0;
   row.cacheCreationTokens += Number.isFinite(message.cacheCreationTokens)
     ? message.cacheCreationTokens

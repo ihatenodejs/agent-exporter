@@ -37,6 +37,21 @@ export const FALLBACK_PRICES: FallbackModelPrice[] = [
 
 ## Pricing Priority
 
+The pricing strategy depends on the provider:
+
+### Usage Providers (CCUsage, Codex)
+
+These providers report their own costs, which are trusted:
+
+1. **Provider-reported cost** - Used if > 0 (CCUsage) or proportionally distributed (Codex)
+2. **genai-prices** - Fallback if provider cost is 0
+3. **Fallback database** - Used if model not found in genai-prices
+4. **Zero cost** - Models not found in any source default to $0
+
+### Message Providers (OpenCode, Gemini, Qwen, Kimi CLI)
+
+These providers don't report costs, so costs are calculated:
+
 1. **genai-prices** - Checked first for all models
 2. **Fallback database** - Used if model not found in genai-prices
 3. **Zero cost** - Models not found in either source default to $0

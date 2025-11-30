@@ -28,6 +28,7 @@ import {
 } from './providers/ccusage';
 import {CodexAdapter} from './providers/codex';
 import {GeminiAdapter} from './providers/gemini';
+import {KimiCliAdapter} from './providers/kimi-cli';
 import {OpenCodeAdapter} from './providers/opencode';
 import {QwenAdapter} from './providers/qwen';
 
@@ -43,6 +44,7 @@ type ProviderOption =
   | 'gemini'
   | 'ccusage'
   | 'codex'
+  | 'kimi-cli'
   | 'all';
 
 interface DatabaseOption {
@@ -85,6 +87,7 @@ const createProviderAdapter: Record<SingleProvider, () => ProviderAdapter> = {
   gemini: () => new GeminiAdapter(),
   ccusage: () => new CCUsageAdapter(),
   codex: () => new CodexAdapter(),
+  'kimi-cli': () => new KimiCliAdapter(),
 };
 
 const buildAdapters = (provider: ProviderOption): ProviderAdapter[] => {
@@ -130,9 +133,11 @@ const transformUsageEntriesToMessages = (
   adapter: {name: string},
   usageEntries: UsageEntry[],
 ): UnifiedMessage[] => {
-  return usageEntries.flatMap((entry) => {
+  return usageEntries.map((entry) => {
+    const id = `${adapter.name}-${entry.date}-${entry.model}-${entry.inputTokens}-${entry.outputTokens}-${entry.cacheCreationTokens}-${entry.cacheReadTokens}`;
+
     const message: UnifiedMessage = {
-      id: `${adapter.name}-${entry.date}-${entry.model}`,
+      id,
       sessionId: `${adapter.name}-session-${entry.date}`,
       provider: entry.provider,
       model: entry.model,
@@ -145,14 +150,7 @@ const transformUsageEntriesToMessages = (
       timestamp: new Date(entry.date).getTime(),
       date: entry.date,
     };
-    return entry.entryCount
-      ? Array(entry.entryCount)
-          .fill(message)
-          .map((_, i) => ({
-            ...message,
-            id: `${message.id}-${i}`,
-          }))
-      : [message];
+    return message;
   });
 };
 
@@ -167,6 +165,7 @@ const VALID_PROVIDERS = [
   'gemini',
   'ccusage',
   'codex',
+  'kimi-cli',
   'all',
 ];
 
@@ -175,7 +174,7 @@ program
   .description('Sync data from providers to database')
   .option(
     '-p, --provider <provider>',
-    'Provider to sync (opencode, qwen, gemini, ccusage, codex, or all)',
+    'Provider to sync (opencode, qwen, gemini, ccusage, codex, kimi-cli, or all)',
     'all',
   )
   .option('-d, --db <path>', 'Database path', DEFAULT_DB_PATH)

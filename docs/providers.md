@@ -4,41 +4,40 @@
 
 ### OpenCode Provider
 
-- Default provider for OpenCode usage data
-- Fetches usage entries from OpenCode's API
+- Fetches usage entries from OpenCode's data directory
 - Includes all token types (input, output, reasoning, cache)
 - No additional configuration required
 
 ### CCUsage Provider
 
-- Requires `ccusage` CLI to be installed and available in PATH
-- Reads data directly from Claude Code's usage tracking
+- Reads data directly from [ccusage](https://github.com/ryoppippi/ccusage)
 - Automatically aggregates daily usage from all models used in Claude Code
-- Provides accurate costs directly from Claude Code
-- No additional configuration needed if you're already using Claude Code
+- Provides accurate costs provided by ccusage
 
 ### Codex Provider
 
-- Requires `@ccusage/codex` package to be available via bunx
-- Reads data directly from Codex's usage tracking
+- Reads data directly from [@ccusage/codex](https://www.npmjs.com/package/@ccusage/codex)
 - Supports all Codex models including GPT-5, GPT-5-Codex, etc.
 - Includes reasoning tokens and cached input tokens
 - Provides accurate costs directly from Codex
-- No additional configuration needed if you're already using Codex
 
 ### Gemini Provider
 
-- Fetches usage data from Google's Gemini API
-- Supports all Gemini model variants
+- Accurate pricing for latest Gemini models
+- Supports latest Gemini model variants
 - Includes token usage and cost information
-- Requires appropriate API credentials to be configured
 
 ### Qwen Provider
 
 - Fetches usage data from Alibaba's Qwen models
 - Supports Qwen model family including Qwen-Max, Qwen-Plus, etc.
 - Includes comprehensive token tracking
-- Requires API access to be configured
+
+### Kimi CLI Provider
+
+- Reads data directly from Kimi CLI's data directory
+- Supports latest Kimi models with token and message tracking
+- Accurate pricing for latest Kimi models
 
 ## Provider Data Types
 
@@ -151,6 +150,7 @@ const VALID_PROVIDERS = [
   'gemini',
   'ccusage',
   'codex',
+  'kimi-cli',
   'your-provider', // Add your provider here
   'all',
 ];
@@ -165,6 +165,7 @@ const createProviderAdapter: Record<SingleProvider, () => ProviderAdapter> = {
   gemini: () => new GeminiAdapter(),
   ccusage: () => new CCUsageAdapter(),
   codex: () => new CodexAdapter(),
+  'kimi-cli': () => new KimiCliAdapter(),
   'your-provider': () => new YourProviderAdapter(), // Add your adapter here
 };
 ```

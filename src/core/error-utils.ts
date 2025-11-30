@@ -153,6 +153,12 @@ export function handleProviderError(
       ENOENT: 'Qwen data directory not found',
       EACCES: 'Permission denied accessing Qwen data directory',
     },
+    'kimi-cli': {
+      ENOENT: '',
+      'command not found': 'kimi-cli is not installed',
+      bunx: "kimi-cli is not available. Ensure it's installed globally",
+      'totals.*null': 'No usage data found in kimi-cli export',
+    },
   };
 
   const providerKey = providerName.toLowerCase();

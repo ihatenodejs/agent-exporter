@@ -11,6 +11,7 @@ export function generateCCUsageExport(dailyUsage: DailyUsage[]): CCUsageExport {
   const totals = {
     inputTokens: 0,
     outputTokens: 0,
+    reasoningTokens: 0,
     cacheCreationTokens: 0,
     cacheReadTokens: 0,
     totalCost: 0,
@@ -20,6 +21,7 @@ export function generateCCUsageExport(dailyUsage: DailyUsage[]): CCUsageExport {
   for (const day of dailyUsage) {
     totals.inputTokens += day.inputTokens;
     totals.outputTokens += day.outputTokens;
+    totals.reasoningTokens += day.reasoningTokens;
     totals.cacheCreationTokens += day.cacheCreationTokens;
     totals.cacheReadTokens += day.cacheReadTokens;
     totals.totalCost += day.totalCost;
@@ -83,6 +85,7 @@ export function createEmptyDailyUsage(date: string): DailyUsage {
     date,
     inputTokens: 0,
     outputTokens: 0,
+    reasoningTokens: 0,
     cacheCreationTokens: 0,
     cacheReadTokens: 0,
     totalTokens: 0,
@@ -102,6 +105,7 @@ export function createEmptyModelBreakdown(modelName: string): ModelBreakdown {
     modelName,
     inputTokens: 0,
     outputTokens: 0,
+    reasoningTokens: 0,
     cacheCreationTokens: 0,
     cacheReadTokens: 0,
     cost: 0,
@@ -134,6 +138,7 @@ export function aggregateMessagesByDailyUsage(
 
     breakdown.inputTokens += msg.inputTokens;
     breakdown.outputTokens += msg.outputTokens;
+    breakdown.reasoningTokens += msg.reasoningTokens;
     breakdown.cacheCreationTokens += msg.cacheCreationTokens;
     breakdown.cacheReadTokens += msg.cacheReadTokens;
     breakdown.cost += msg.cost;
@@ -148,6 +153,7 @@ export function aggregateMessagesByDailyUsage(
     for (const breakdown of modelBreakdowns) {
       daily.inputTokens += breakdown.inputTokens;
       daily.outputTokens += breakdown.outputTokens;
+      daily.reasoningTokens += breakdown.reasoningTokens;
       daily.cacheCreationTokens += breakdown.cacheCreationTokens;
       daily.cacheReadTokens += breakdown.cacheReadTokens;
       daily.totalCost += breakdown.cost;
@@ -155,10 +161,7 @@ export function aggregateMessagesByDailyUsage(
     }
 
     daily.totalTokens =
-      daily.inputTokens +
-      daily.outputTokens +
-      daily.cacheCreationTokens +
-      daily.cacheReadTokens;
+      daily.inputTokens + daily.outputTokens + daily.reasoningTokens;
 
     dailyUsage.push(daily);
   }

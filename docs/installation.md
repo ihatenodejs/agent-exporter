@@ -2,16 +2,8 @@
 
 ## 1. Install Bun
 
-### macOS/Linux
-
 ```bash
 curl -fsSL https://bun.sh/install | bash
-```
-
-### Windows
-
-```powershell
-powershell -c "irm bun.sh/install.ps1 | iex"
 ```
 
 ## 2. Install Package

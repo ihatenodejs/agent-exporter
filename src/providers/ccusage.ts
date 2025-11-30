@@ -143,10 +143,8 @@ export const convertCcUsageExportToMessages = (
 
   for (const dailyEntry of dailyEntries) {
     const breakdowns = dailyEntry.modelBreakdowns;
-    for (let i = 0; i < breakdowns.length; i++) {
-      const breakdown = breakdowns[i];
-
-      const messageId = `ccusage-${dailyEntry.date}-${breakdown.modelName}-${i}`;
+    for (const breakdown of breakdowns) {
+      const messageId = `ccusage-${dailyEntry.date}-${breakdown.modelName}-${breakdown.inputTokens}-${breakdown.outputTokens}-${breakdown.cacheCreationTokens}-${breakdown.cacheReadTokens}`;
       const sessionId = `ccusage-session-${dailyEntry.date}`;
       const timestamp = dayjs(`${dailyEntry.date} 12:00:00`).valueOf();
       const provider = detectProviderFromModel(breakdown.modelName);

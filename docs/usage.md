@@ -22,12 +22,21 @@ agent-exporter sync --provider qwen
 # Sync from Codex
 agent-exporter sync --provider codex
 
+# Sync from Kimi CLI
+agent-exporter sync --provider kimi-cli
+
 # Sync from all providers
 agent-exporter sync --provider all
 agent-exporter sync # `all` is the default for sync
 ```
 
 By default, data is stored in `~/.agent-exporter.db`.
+
+Options:
+
+- `-p, --provider <provider>` - Provider to sync (opencode, ccusage, codex, gemini, qwen, kimi-cli, or all) (default: all)
+- `-v, --verbose` - Show detailed error information during sync
+- `-d, --db <path>` - Custom database path
 
 ### Ingest Usage Data from CCUsage Export
 
@@ -63,7 +72,7 @@ This will:
 
 Options:
 
-- `-p, --provider <provider>` - Provider to sync (opencode, ccusage, codex, gemini, qwen, or all) (default: all)
+- `-p, --provider <provider>` - Provider to sync (opencode, ccusage, codex, gemini, qwen, kimi-cli, or all) (default: all)
 - `-d, --db <path>` - Custom database path
 
 ### View Statistics
@@ -124,7 +133,7 @@ Options:
 - `-e, --end <date>` - End date (YYYY-MM-DD) - required for `range` command
 - `-d, --db <path>` - Custom database path
 - `--use-raw-labels` - Display raw model identifiers instead of friendly labels
-- `--show-hidden` - Display table rows that are hidden by default in the provider/model tables
+- `--show-hidden` - Display table rows that are hidden by default in the provider/model tables (rows with zero usage are hidden by default)
 
 ### Export Data in JSON Format
 

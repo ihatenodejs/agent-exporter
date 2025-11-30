@@ -63,8 +63,6 @@ export class CodexAdapter implements UsageProviderAdapter {
           const date = dayjs(timestamp).format('YYYY-MM-DD');
 
           const cacheReadTokens = modelData.cachedInputTokens;
-          const actualInputTokens =
-            modelData.inputTokens - modelData.cachedInputTokens;
 
           const cost =
             totalTokensForDay > 0
@@ -75,7 +73,7 @@ export class CodexAdapter implements UsageProviderAdapter {
             date,
             provider: 'codex',
             model: modelName,
-            inputTokens: actualInputTokens,
+            inputTokens: modelData.inputTokens,
             outputTokens: modelData.outputTokens,
             reasoningTokens: modelData.reasoningOutputTokens,
             cacheCreationTokens: 0,
