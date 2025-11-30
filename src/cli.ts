@@ -52,6 +52,7 @@ interface DatabaseOption {
 interface SyncCommandOptions extends DatabaseOption {
   readonly provider: ProviderOption;
   readonly recalculateCosts?: boolean;
+  readonly verbose?: boolean;
 }
 
 interface DateRangeOptions extends DatabaseOption {
@@ -182,80 +183,43 @@ program
     '--recalculate-costs',
     'Recalculate costs for all messages in the database',
   )
+  .option('-v, --verbose', 'Show detailed error information')
   .action(async (options: SyncCommandOptions): Promise<void> => {
-    try {
-      if (!VALID_PROVIDERS.includes(options.provider)) {
-        console.error(`Invalid provider: ${options.provider}`);
-        process.exit(1);
-      }
-
-      console.log(`Syncing data from ${options.provider}...`);
-
-      const db = initializeDatabase(options.db);
-      const dbManager = new DatabaseManager(db);
-
-      const adapters = buildAdapters(options.provider);
-
-      let totalMessages = 0;
-      for (const adapter of adapters) {
-        console.log(`\nSyncing ${adapter.name}...`);
-
-        let messages: UnifiedMessage[];
-        let itemCount: number;
-
-        if (adapter.dataType === 'usage entries') {
-          const usageEntries = await adapter.fetchUsageEntries();
-          messages = transformUsageEntriesToMessages(adapter, usageEntries);
-          itemCount = usageEntries.length;
-        } else {
-          messages = await adapter.fetchMessages();
-          itemCount = messages.length;
-        }
-
-        console.log(
-          `Found ${itemCount} ${adapter.dataType} from ${adapter.name}`,
-        );
-
-        if (messages.length > 0) {
-          dbManager.insertMessages(messages);
-          console.log(
-            `✓ Synced ${messages.length} ${adapter.dataType} to database`,
-          );
-
-          const lastMessage = messages[messages.length - 1];
-          dbManager.updateSyncState(adapter.name, Date.now(), lastMessage.id);
-          totalMessages += messages.length;
-        } else {
-          console.log(`No ${adapter.dataType} to sync from ${adapter.name}`);
-        }
-      }
-
-      if (adapters.length > 1) {
-        console.log(
-          `\n✓ Total synced: ${totalMessages} entries from ${adapters.length} providers`,
-        );
-      }
-
-      if (options.recalculateCosts) {
-        console.log(
-          '\nRecalculating costs for ALL messages in the database...',
-        );
-        const updatedCount = dbManager.recalculateCosts(true);
-        console.log(`✓ Recalculated costs for ${updatedCount} messages`);
-      } else {
-        console.log('\nRecalculating costs for messages with missing costs...');
-        const updatedCount = dbManager.recalculateCosts();
-        if (updatedCount > 0) {
-          console.log(`✓ Recalculated costs for ${updatedCount} messages`);
-        } else {
-          console.log(`✓ All messages already have costs`);
-        }
-      }
-
-      dbManager.close();
-    } catch (error: unknown) {
-      logError('Sync failed', error);
+    if (!VALID_PROVIDERS.includes(options.provider)) {
+      console.error(`Invalid provider: ${options.provider}`);
       process.exit(1);
+    }
+
+    let db;
+    try {
+      db = initializeDatabase(options.db);
+    } catch (error: unknown) {
+      logError('Failed to initialize database', error);
+      process.exit(1);
+    }
+
+    const dbManager = new DatabaseManager(db);
+    const adapters = buildAdapters(options.provider);
+
+    const {SyncApp} = await import('./ui/SyncApp');
+    const {render} = await import('ink');
+
+    const {waitUntilExit} = render(
+      React.createElement(SyncApp, {
+        adapters,
+        dbManager,
+        verbose: Boolean(options.verbose),
+        recalculateCosts: Boolean(options.recalculateCosts),
+        transformUsageEntriesToMessages,
+      }),
+    );
+
+    try {
+      await waitUntilExit();
+    } catch (error: unknown) {
+      const exitCode =
+        error instanceof Error ? Number.parseInt(error.message, 10) : 1;
+      process.exit(Number.isNaN(exitCode) ? 1 : exitCode);
     }
   });
 

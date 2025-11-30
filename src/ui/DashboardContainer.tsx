@@ -70,9 +70,8 @@ export const DashboardContainer = ({
         }
 
         await handleRefresh();
-        const {getDateRangeForPeriod, getDateRangeDescription} = await import(
-          '../core/date-utils'
-        );
+        const {getDateRangeForPeriod, getDateRangeDescription} =
+          await import('../core/date-utils');
         const range = getDateRangeForPeriod(period);
         setCurrentRangeDescription(
           getDateRangeDescription(range.start, range.end),

@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import {z} from 'zod';
 
-import {normalizeAndLogError} from '../core/error-utils';
+import {normalizeError} from '../core/error-utils';
 import {calculateCost} from '../core/pricing';
 import {spawnCommandAndParseJson} from '../core/spawn-utils';
 import {
@@ -227,13 +227,13 @@ export class CCUsageAdapter implements UsageProviderAdapter {
   async fetchUsageEntries(): Promise<UsageEntry[]> {
     try {
       const ccusageData = await spawnCommandAndParseJson(
-        ['ccusage', 'daily', '--json'],
+        ['bunx', 'ccusage', 'daily', '--json'],
         CCUsageExportSchema,
       );
 
       return convertCcUsageExportToUsageEntries(ccusageData);
     } catch (error: unknown) {
-      throw normalizeAndLogError('to fetch CCUsage data', error);
+      throw normalizeError(error);
     }
   }
 }

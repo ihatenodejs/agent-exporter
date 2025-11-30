@@ -11,6 +11,7 @@ export default tseslint.config(
     ignores: [
       'dist/**',
       'node_modules/**',
+      'scripts/**',
       '*.d.ts',
       'bun.lock',
       'eslint.config.mjs',

@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import {z} from 'zod';
 
-import {normalizeAndLogError} from '../core/error-utils';
+import {normalizeError} from '../core/error-utils';
 import {spawnCommandAndParseJson} from '../core/spawn-utils';
 import {type UsageProviderAdapter, type UsageEntry} from '../core/types';
 
@@ -86,7 +86,7 @@ export class CodexAdapter implements UsageProviderAdapter {
         }
       }
     } catch (error: unknown) {
-      throw normalizeAndLogError('to fetch Codex data', error);
+      throw normalizeError(error);
     }
 
     return usageEntries;

@@ -29,29 +29,6 @@ Agent Exporter uses GitHub Actions for automated quality checks, releases, and n
 
 This workflow ensures code quality and prevents broken code from being merged.
 
-### Create Release Tag (`create-tag.yml`)
-
-**Triggers:**
-
-- Push to `main` branch (excluding release commits)
-
-**Steps:**
-
-1. Checkout repository with full history
-2. Setup Node.js 24 and Bun
-3. Install dependencies
-4. Run quality checks (same as above)
-5. Build the project
-6. Create and push version tag based on `package.json` version
-
-**Logic:**
-
-- Extracts version from `package.json`
-- Skips if tag already exists
-- Creates tag `v{version}` and pushes to origin
-
-This workflow automatically creates version tags when code is merged to main.
-
 ### Create GitHub Release (`create-release.yml`)
 
 **Triggers:**
@@ -110,9 +87,8 @@ The automated release process follows these steps:
 1. **Development**: Code is pushed to feature branches
 2. **Quality Check**: `quality-checks.yml` runs on PRs
 3. **Merge**: Code is merged to `main`
-4. **Tag Creation**: `create-tag.yml` creates version tag
-5. **Release**: `create-release.yml` creates GitHub release
-6. **Publish**: `publish.yml` publishes to npm
+4. **Release**: `create-release.yml` creates GitHub release and tag
+5. **Publish**: `publish.yml` publishes to npm
 
 ## Required Secrets
 

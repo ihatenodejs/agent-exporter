@@ -4,6 +4,7 @@ import dayjs from 'dayjs';
 import {
   CCUsageExportSchema,
   convertCcUsageExportToMessages,
+  convertCcUsageExportToUsageEntries,
   detectProviderFromModel,
 } from '../ccusage';
 
@@ -116,5 +117,58 @@ describe('CCUsage utilities', () => {
     });
     expect(second.reasoningTokens).toBe(0);
     expect(second.timestamp).toBe(secondTimestamp);
+  });
+
+  it('converts ccusage export data to usage entries', () => {
+    const exportData = {
+      daily: [
+        {
+          date: '2024-03-15',
+          inputTokens: 200,
+          outputTokens: 400,
+          cacheCreationTokens: 25,
+          cacheReadTokens: 10,
+          totalTokens: 635,
+          totalCost: 5.0,
+          modelsUsed: ['claude-3-sonnet-20240229'],
+          modelBreakdowns: [
+            {
+              modelName: 'claude-3-sonnet-20240229',
+              inputTokens: 200,
+              outputTokens: 400,
+              cacheCreationTokens: 25,
+              cacheReadTokens: 10,
+              cost: 5.0,
+            },
+          ],
+        },
+      ],
+      totals: {
+        inputTokens: 200,
+        outputTokens: 400,
+        cacheCreationTokens: 25,
+        cacheReadTokens: 10,
+        totalTokens: 635,
+        totalCost: 5.0,
+      },
+    } satisfies unknown;
+
+    const parsed = CCUsageExportSchema.parse(exportData);
+    const usageEntries = convertCcUsageExportToUsageEntries(parsed);
+
+    expect(usageEntries).toHaveLength(1);
+
+    expect(usageEntries[0]).toMatchObject({
+      date: '2024-03-15',
+      provider: 'anthropic',
+      model: 'claude-3-sonnet-20240229',
+      inputTokens: 200,
+      outputTokens: 400,
+      reasoningTokens: 0,
+      cacheCreationTokens: 25,
+      cacheReadTokens: 10,
+      totalCost: 5.0,
+      entryCount: 1,
+    });
   });
 });

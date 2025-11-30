@@ -25,7 +25,40 @@ Build the executable:
 bun run build
 ```
 
-This creates a compiled executable at `dist/agent-exporter`.
+This creates platform-specific executables for all supported platforms:
+
+- `dist/agent-exporter-linux-x64`
+- `dist/agent-exporter-linux-arm64`
+- `dist/agent-exporter-darwin-x64`
+- `dist/agent-exporter-darwin-arm64`
+
+You can also build for specific platforms:
+
+```bash
+bun run build:linux-x64
+bun run build:linux-arm64
+bun run build:darwin-x64
+bun run build:darwin-arm64
+```
+
+## Testing
+
+Run unit tests:
+
+```bash
+bun run test
+```
+
+## Code Quality
+
+Run linting and formatting:
+
+```bash
+bun run lint
+bun run lint:fix
+bun run format
+bun run format:check
+```
 
 ## Type Checking
 

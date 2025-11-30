@@ -3,7 +3,7 @@ import {join} from 'path';
 
 import dayjs from 'dayjs';
 
-import {normalizeAndLogError} from '../core/error-utils';
+import {normalizeError} from '../core/error-utils';
 import {getDirectories, getFiles, readJsonFile} from '../core/fs-utils';
 import {calculateCost} from '../core/pricing';
 import {
@@ -104,10 +104,7 @@ export class OpenCodeAdapter implements MessagesProviderAdapter {
         }
       }
     } catch (error: unknown) {
-      throw normalizeAndLogError(
-        `to read messages path ${this.messagesPath}`,
-        error,
-      );
+      throw normalizeError(error);
     }
 
     return unifiedMessages;

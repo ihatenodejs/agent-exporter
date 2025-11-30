@@ -31,7 +31,7 @@ The exported JSON is organized by provider name (`[provider-name]`), then by sub
       }
     }
   },
-  "[provider-name]"
+  "[provider-name]": {
     "daily": [
       {
         "date": "2025-10-01",

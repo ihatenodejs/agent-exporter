@@ -5,7 +5,7 @@ import {join} from 'path';
 import dayjs from 'dayjs';
 import {z} from 'zod';
 
-import {normalizeAndLogError} from '../core/error-utils';
+import {normalizeError} from '../core/error-utils';
 import {getDirectories, getFiles, readJsonFile} from '../core/fs-utils';
 import {calculateCost} from '../core/pricing';
 import {type UnifiedMessage, type MessagesProviderAdapter} from '../core/types';
@@ -135,7 +135,7 @@ export class QwenAdapter implements MessagesProviderAdapter {
         }
       }
     } catch (error: unknown) {
-      throw normalizeAndLogError(`to read tmp path ${this.tmpPath}`, error);
+      throw normalizeError(error);
     }
 
     return unifiedMessages;

@@ -1,0 +1,23 @@
+{
+  "name": "@agent-exporter/linux-arm64",
+  "version": "1.0.3",
+  "description": "agent-exporter binary for Linux arm64",
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "arm64"
+  ],
+  "main": "bin/agent-exporter",
+  "bin": {
+    "agent-exporter": "bin/agent-exporter"
+  },
+  "files": [
+    "bin"
+  ],
+  "license": "Unlicense",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ihatenodejs/agent-exporter.git"
+  }
+}

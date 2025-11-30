@@ -15,6 +15,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: 24
+          registry-url: 'https://registry.npmjs.org'
 
       - name: Install Bun
         uses: oven-sh/setup-bun@v2
@@ -31,12 +32,13 @@ jobs:
           bunx tsc --noEmit
 
       - name: Build
-        run: bun run build:all
+        run: bun run build
 
       - name: Check if version exists on npm
         id: check_npm
         run: |
           VERSION=$(node -p "require('./package.json').version")
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
           if npm view "agent-exporter@$VERSION" >/dev/null 2>&1; then
             echo "exists=true" >> $GITHUB_OUTPUT
             echo "Version $VERSION already exists on npm, skipping publish"
@@ -44,11 +46,23 @@ jobs:
             echo "exists=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Publish to npm
+      - name: Publish platform packages
         if: steps.check_npm.outputs.exists == 'false'
-        run: bun publish
         env:
-          NPM_CONFIG_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          for platform in linux-x64 linux-arm64 darwin-x64 darwin-arm64; do
+            echo "Publishing @agent-exporter/$platform..."
+            cd packages/$platform
+            npm publish --access public || echo "Package may already exist, continuing..."
+            cd ../..
+          done
+
+      - name: Publish main package
+        if: steps.check_npm.outputs.exists == 'false'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --access public
 
       - name: Skip publish notification
         if: steps.check_npm.outputs.exists == 'true'

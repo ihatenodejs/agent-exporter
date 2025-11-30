@@ -49,9 +49,11 @@ Providers return one of two data types:
 
 ## Adding New Providers
 
-To add a new provider, implement one of two adapter interfaces depending on your data source:
+To add a new provider, implement the appropriate adapter interface based on your data source. The codebase uses a unified `ProviderAdapter` type that encompasses both message-level and usage-level providers.
 
-## Messages Provider Adapter
+## Provider Adapter Interfaces
+
+### Messages Provider Adapter
 
 For providers that expose individual message-level data:
 
@@ -63,7 +65,7 @@ export interface MessagesProviderAdapter {
 }
 ```
 
-## Usage Provider Adapter
+### Usage Provider Adapter
 
 For providers that expose aggregated usage data:
 
@@ -88,12 +90,18 @@ export interface UsageEntry {
 }
 ```
 
-## Steps to Add a Messages Provider
+### Unified Provider Type
+
+```typescript
+export type ProviderAdapter = MessagesProviderAdapter | UsageProviderAdapter;
+```
+
+## Steps to Add a New Provider
 
 1. Create a new file in `src/providers/your-provider.ts`
-2. Implement the `MessagesProviderAdapter` interface
-3. Transform source data to `UnifiedMessage[]` format
-4. Use `calculateCost()` from pricing.ts for cost calculation on each message
+2. Implement either `MessagesProviderAdapter` or `UsageProviderAdapter` interface
+3. Transform source data to the appropriate format (`UnifiedMessage[]` or `UsageEntry[]`)
+4. Use `calculateCost()` from pricing.ts for cost calculation on each message (for messages providers)
 5. Add the provider to the VALID_PROVIDERS list in `src/cli.ts`
 6. Add the provider to the createProviderAdapter mapping in `src/cli.ts`
 7. Update the provider list in README.md and documentation
@@ -113,16 +121,6 @@ export class YourProviderAdapter implements MessagesProviderAdapter {
   }
 }
 ```
-
-## Steps to Add a Usage Provider
-
-1. Create a new file in `src/providers/your-provider.ts`
-2. Implement the `UsageProviderAdapter` interface
-3. Transform source data to `UsageEntry[]` format
-4. Ensure costs are pre-calculated or calculate them from aggregated token counts
-5. Add the provider to the VALID_PROVIDERS list in `src/cli.ts`
-6. Add the provider to the createProviderAdapter mapping in `src/cli.ts`
-7. Update the provider list in README.md and documentation
 
 Example Usage Provider:
 
@@ -144,7 +142,7 @@ export class YourProviderAdapter implements UsageProviderAdapter {
 
 After implementing your adapter, update the CLI integration in `src/cli.ts`:
 
-1. **Add to VALID_PROVIDERS list** (around line 134):
+1. **Add to VALID_PROVIDERS list** (around line 82):
 
 ```typescript
 const VALID_PROVIDERS = [
@@ -158,7 +156,7 @@ const VALID_PROVIDERS = [
 ];
 ```
 
-1. **Add to createProviderAdapter mapping** (around line 82):
+2. **Add to createProviderAdapter mapping** (around line 82):
 
 ```typescript
 const createProviderAdapter: Record<SingleProvider, () => ProviderAdapter> = {

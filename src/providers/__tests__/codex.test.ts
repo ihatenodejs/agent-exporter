@@ -17,7 +17,7 @@ describe('CodexAdapter', () => {
     vi.restoreAllMocks();
   });
 
-  it('transforms codex JSON output into unified messages', async () => {
+  it('transforms codex JSON output into usage entries', async () => {
     const payload = {
       daily: [
         {
@@ -69,31 +69,15 @@ describe('CodexAdapter', () => {
     const adapter = new CodexAdapter();
     const usageEntries = await adapter.fetchUsageEntries();
 
-    const messages = usageEntries.flatMap((entry) => ({
-      id: `codex-${entry.date}-${entry.model}`,
-      sessionId: `codex-session-${entry.date}`,
-      provider: entry.provider,
-      model: entry.model,
-      inputTokens: entry.inputTokens,
-      outputTokens: entry.outputTokens,
-      reasoningTokens: entry.reasoningTokens,
-      cacheCreationTokens: entry.cacheCreationTokens,
-      cacheReadTokens: entry.cacheReadTokens,
-      cost: entry.totalCost,
-      timestamp: new Date(entry.date).getTime(),
-      date: entry.date,
-    }));
-
     expect(spawnSpy).toHaveBeenCalledWith(
       ['bunx', '@ccusage/codex@latest', '--json'],
       {stdout: 'pipe', stderr: 'pipe'},
     );
 
-    expect(messages).toHaveLength(2);
+    expect(usageEntries).toHaveLength(2);
 
-    expect(messages[0]).toMatchObject({
-      id: 'codex-2024-01-05-gpt-4.1-mini',
-      sessionId: 'codex-session-2024-01-05',
+    expect(usageEntries[0]).toMatchObject({
+      date: '2024-01-05',
       provider: 'codex',
       model: 'gpt-4.1-mini',
       inputTokens: 500,
@@ -101,14 +85,12 @@ describe('CodexAdapter', () => {
       reasoningTokens: 50,
       cacheCreationTokens: 0,
       cacheReadTokens: 100,
-      cost: (1150 / 2100) * 4.0,
-      date: '2024-01-05',
+      totalCost: (1150 / 2100) * 4.0,
+      entryCount: 1,
     });
-    expect(messages[0].timestamp).toBe(new Date('2024-01-05').getTime());
 
-    expect(messages[1]).toMatchObject({
-      id: 'codex-2024-01-05-gpt-4o',
-      sessionId: 'codex-session-2024-01-05',
+    expect(usageEntries[1]).toMatchObject({
+      date: '2024-01-05',
       provider: 'codex',
       model: 'gpt-4o',
       inputTokens: 500,
@@ -116,16 +98,12 @@ describe('CodexAdapter', () => {
       reasoningTokens: 50,
       cacheCreationTokens: 0,
       cacheReadTokens: 100,
-      cost: (950 / 2100) * 4.0,
-      date: '2024-01-05',
+      totalCost: (950 / 2100) * 4.0,
+      entryCount: 1,
     });
-    expect(messages[1].timestamp).toBe(new Date('2024-01-05').getTime());
   });
 
   it('throws when the codex command exits with an error', async () => {
-    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {
-      // Mock implementation intentionally empty
-    });
     const spawnSpy = vi.spyOn(Bun, 'spawn').mockImplementation(() => {
       return {
         stdout: createStream(''),
@@ -148,6 +126,5 @@ describe('CodexAdapter', () => {
 
     expect(errorThrown).toBe(true);
     expect(spawnSpy).toHaveBeenCalledTimes(1);
-    expect(errorSpy).toHaveBeenCalled();
   });
 });
