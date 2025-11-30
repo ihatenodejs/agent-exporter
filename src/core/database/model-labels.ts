@@ -31,10 +31,7 @@ export const MODEL_LABELS: ModelLabelEntry[] = [
     label: 'Claude Sonnet 4.5 Sonnet (2025-09-29)',
   },
   {
-    model: [
-      'claude-sonnet-4-5',
-      'claude-sonnet-4-5'
-    ],
+    model: ['claude-sonnet-4-5', 'claude-sonnet-4-5'],
     label: 'Claude Sonnet 4.5',
   },
   {
@@ -46,10 +43,7 @@ export const MODEL_LABELS: ModelLabelEntry[] = [
     label: 'Claude Haiku 4.5 (2025-10-01)',
   },
   {
-    model: [
-      'claude-haiku-4-5',
-      'claude-haiku-4.5'
-    ],
+    model: ['claude-haiku-4-5', 'claude-haiku-4.5'],
     label: 'Claude Haiku 4.5',
   },
   {
