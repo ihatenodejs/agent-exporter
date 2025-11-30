@@ -5,8 +5,13 @@ import {join} from 'path';
 import dayjs from 'dayjs';
 import {z} from 'zod';
 
-import {normalizeError} from '../core/error-utils';
+import {
+  logProviderError,
+  handleProviderError,
+  ErrorSeverity,
+} from '../core/error-utils';
 import {getDirectories, getFiles, readJsonFile} from '../core/fs-utils';
+import {validateHomeDirectoryPath} from '../core/path-validation';
 import {calculateCost} from '../core/pricing';
 import {type UnifiedMessage, type MessagesProviderAdapter} from '../core/types';
 
@@ -48,10 +53,16 @@ export class QwenAdapter implements MessagesProviderAdapter {
     const unifiedMessages: UnifiedMessage[] = [];
 
     try {
-      const sessionDirs = getDirectories(this.tmpPath);
+      const pathValidation = validateHomeDirectoryPath(this.tmpPath, ['.qwen']);
+
+      if (!pathValidation.isValid || !pathValidation.resolvedPath) {
+        throw new Error(pathValidation.error ?? 'Path validation failed');
+      }
+
+      const sessionDirs = await getDirectories(pathValidation.resolvedPath);
 
       for (const sessionDir of sessionDirs) {
-        const sessionPath = join(this.tmpPath, sessionDir);
+        const sessionPath = join(pathValidation.resolvedPath, sessionDir);
         const chatsPath = join(sessionPath, 'chats');
 
         if (!existsSync(chatsPath)) {
@@ -59,7 +70,7 @@ export class QwenAdapter implements MessagesProviderAdapter {
         }
 
         try {
-          const sessionFiles = getFiles(chatsPath, {
+          const sessionFiles = await getFiles(chatsPath, {
             prefix: 'session-',
             suffix: '.json',
           });
@@ -72,8 +83,13 @@ export class QwenAdapter implements MessagesProviderAdapter {
 
               const parsed = QwenSessionSchema.safeParse(data);
               if (!parsed.success) {
-                console.warn(
-                  `Failed to parse session file ${sessionFile}:`,
+                logProviderError(
+                  {
+                    context: `parse session file ${sessionFile}`,
+                    provider: 'qwen',
+                    severity: ErrorSeverity.LOW,
+                    shouldContinue: true,
+                  },
                   parsed.error,
                 );
                 continue;
@@ -121,21 +137,32 @@ export class QwenAdapter implements MessagesProviderAdapter {
                 });
               }
             } catch (error) {
-              console.warn(
-                `Failed to parse session file ${sessionFile}:`,
+              logProviderError(
+                {
+                  context: `parse session file ${sessionFile}`,
+                  provider: 'qwen',
+                  severity: ErrorSeverity.LOW,
+                  shouldContinue: true,
+                },
                 error,
               );
             }
           }
         } catch (error) {
-          console.warn(
-            `Failed to read chats directory in ${sessionDir}:`,
+          logProviderError(
+            {
+              context: `read chats directory in ${sessionDir}`,
+              provider: 'qwen',
+              severity: ErrorSeverity.LOW,
+              shouldContinue: true,
+            },
             error,
           );
         }
       }
     } catch (error: unknown) {
-      throw normalizeError(error);
+      const userMessage = handleProviderError('qwen', 'fetch messages', error);
+      throw new Error(userMessage);
     }
 
     return unifiedMessages;

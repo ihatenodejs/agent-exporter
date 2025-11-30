@@ -120,7 +120,7 @@ describe('CodexAdapter', () => {
     } catch (error) {
       errorThrown = true;
       expect((error as Error).message).toMatch(
-        /bunx command failed with exit code 1/,
+        /@ccusage\/codex is not available/,
       );
     }
 

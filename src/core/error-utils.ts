@@ -2,6 +2,20 @@
  * Error handling utilities for consistent error normalization and logging
  */
 
+export enum ErrorSeverity {
+  LOW = 'low',
+  MEDIUM = 'medium',
+  HIGH = 'high',
+  CRITICAL = 'critical',
+}
+
+export interface ErrorContext {
+  readonly context: string;
+  readonly provider?: string;
+  readonly severity?: ErrorSeverity;
+  readonly shouldContinue?: boolean;
+}
+
 /**
  * Normalizes an unknown error to an Error instance, logs it, and returns it.
  * This provides consistent error handling across all provider adapters.
@@ -73,4 +87,84 @@ export function getErrorStack(error: unknown): string | undefined {
     return error.stack;
   }
   return undefined;
+}
+
+/**
+ * Logs an error with consistent formatting and optional provider context
+ */
+export function logProviderError(context: ErrorContext, error: unknown): Error {
+  const normalizedError = normalizeError(error);
+  const severity = context.severity ?? ErrorSeverity.MEDIUM;
+  const timestamp = new Date().toISOString();
+
+  const logMessage = [
+    `[${timestamp}]`,
+    `[${severity.toUpperCase()}]`,
+    context.provider ? `[${context.provider}]` : '',
+    `${context.context}: ${normalizedError.message}`,
+  ]
+    .filter(Boolean)
+    .join(' ');
+
+  console.error(logMessage);
+
+  if (
+    normalizedError.stack &&
+    (severity === ErrorSeverity.HIGH || severity === ErrorSeverity.CRITICAL)
+  ) {
+    console.error('Stack trace:', normalizedError.stack);
+  }
+
+  return normalizedError;
+}
+
+/**
+ * Handles provider-specific errors with user-friendly messages
+ */
+export function handleProviderError(
+  providerName: string,
+  operation: string,
+  error: unknown,
+): string {
+  const normalizedError = normalizeError(error);
+
+  const errorMappings: Record<string, Record<string, string>> = {
+    ccusage: {
+      'command not found':
+        'ccusage is not installed. Run: bun install -g ccusage',
+      bunx: "ccusage is not available. Ensure it's installed globally",
+      'totals.*null': 'No usage data found in ccusage export',
+    },
+    codex: {
+      'command not found':
+        '@ccusage/codex is not installed. Run: bun install -g @ccusage/codex',
+      bunx: "@ccusage/codex is not available. Ensure it's installed globally",
+      'totals.*null': 'No usage data found in codex export',
+    },
+    opencode: {
+      ENOENT: 'OpenCode data directory not found',
+      EACCES: 'Permission denied accessing OpenCode data directory',
+    },
+    gemini: {
+      ENOENT: 'Gemini data directory not found',
+      EACCES: 'Permission denied accessing Gemini data directory',
+    },
+    qwen: {
+      ENOENT: 'Qwen data directory not found',
+      EACCES: 'Permission denied accessing Qwen data directory',
+    },
+  };
+
+  const providerKey = providerName.toLowerCase();
+  if (providerKey in errorMappings) {
+    const providerMappings = errorMappings[providerKey];
+    for (const [pattern, message] of Object.entries(providerMappings)) {
+      const regex = new RegExp(pattern, 'i');
+      if (regex.test(normalizedError.message)) {
+        return message;
+      }
+    }
+  }
+
+  return `${operation} failed for ${providerName}: ${normalizedError.message}`;
 }

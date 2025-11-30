@@ -7,7 +7,6 @@ import {join, resolve} from 'path';
 import {Command} from 'commander';
 import React from 'react';
 
-import packageJson from '../package.json';
 import {fillMissingDates} from './core/aggregator';
 import {
   getDateRangeDescription,
@@ -21,6 +20,7 @@ import {DatabaseManager} from './database/manager';
 import {initializeDatabase} from './database/schema';
 import {CCUsageExporter} from './exporters/ccusage';
 import {JSONExporter} from './exporters/json';
+import {packageInfo} from './generated/version';
 import {
   CCUsageAdapter,
   CCUsageExportSchema,
@@ -157,9 +157,9 @@ const transformUsageEntriesToMessages = (
 };
 
 program
-  .name(packageJson.name)
-  .description(packageJson.description)
-  .version(packageJson.version);
+  .name(packageInfo.name)
+  .description(packageInfo.description)
+  .version(packageInfo.version);
 
 const VALID_PROVIDERS = [
   'opencode',

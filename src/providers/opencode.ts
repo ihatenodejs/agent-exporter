@@ -3,8 +3,13 @@ import {join} from 'path';
 
 import dayjs from 'dayjs';
 
-import {normalizeError} from '../core/error-utils';
+import {
+  logProviderError,
+  handleProviderError,
+  ErrorSeverity,
+} from '../core/error-utils';
 import {getDirectories, getFiles, readJsonFile} from '../core/fs-utils';
+import {validateHomeDirectoryPath} from '../core/path-validation';
 import {calculateCost} from '../core/pricing';
 import {
   MessageSchema,
@@ -18,22 +23,33 @@ export class OpenCodeAdapter implements MessagesProviderAdapter {
   private readonly messagesPath: string;
 
   constructor(messagesPath?: string) {
-    this.messagesPath =
-      messagesPath ?? join(homedir(), '.local/share/opencode/storage/message');
+    const defaultPath = join(
+      homedir(),
+      '.local/share/opencode/storage/message',
+    );
+    this.messagesPath = messagesPath ?? defaultPath;
   }
 
   async fetchMessages(): Promise<UnifiedMessage[]> {
     const unifiedMessages: UnifiedMessage[] = [];
 
     try {
-      const allDirs = getDirectories(this.messagesPath);
+      const pathValidation = validateHomeDirectoryPath(this.messagesPath, [
+        '.local/share/opencode',
+      ]);
+
+      if (!pathValidation.isValid || !pathValidation.resolvedPath) {
+        throw new Error(pathValidation.error ?? 'Path validation failed');
+      }
+
+      const allDirs = await getDirectories(pathValidation.resolvedPath);
       const sessionDirs = allDirs.filter((name) => name.startsWith('ses_'));
 
       for (const sessionDir of sessionDirs) {
-        const sessionPath = join(this.messagesPath, sessionDir);
+        const sessionPath = join(pathValidation.resolvedPath, sessionDir);
 
         try {
-          const messageFiles = getFiles(sessionPath, {
+          const messageFiles = await getFiles(sessionPath, {
             prefix: 'msg_',
             suffix: '.json',
           });
@@ -90,21 +106,36 @@ export class OpenCodeAdapter implements MessagesProviderAdapter {
                 date,
               });
             } catch (error) {
-              console.warn(
-                `Failed to parse message file ${messageFile}:`,
+              logProviderError(
+                {
+                  context: `parse message file ${messageFile}`,
+                  provider: 'opencode',
+                  severity: ErrorSeverity.LOW,
+                  shouldContinue: true,
+                },
                 error,
               );
             }
           }
         } catch (error) {
-          console.warn(
-            `Failed to read session directory ${sessionDir}:`,
+          logProviderError(
+            {
+              context: `read session directory ${sessionDir}`,
+              provider: 'opencode',
+              severity: ErrorSeverity.LOW,
+              shouldContinue: true,
+            },
             error,
           );
         }
       }
     } catch (error: unknown) {
-      throw normalizeError(error);
+      const userMessage = handleProviderError(
+        'opencode',
+        'fetch messages',
+        error,
+      );
+      throw new Error(userMessage);
     }
 
     return unifiedMessages;

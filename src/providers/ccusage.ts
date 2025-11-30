@@ -1,7 +1,7 @@
 import dayjs from 'dayjs';
 import {z} from 'zod';
 
-import {normalizeError} from '../core/error-utils';
+import {handleProviderError} from '../core/error-utils';
 import {calculateCost} from '../core/pricing';
 import {spawnCommandAndParseJson} from '../core/spawn-utils';
 import {
@@ -233,7 +233,12 @@ export class CCUsageAdapter implements UsageProviderAdapter {
 
       return convertCcUsageExportToUsageEntries(ccusageData);
     } catch (error: unknown) {
-      throw normalizeError(error);
+      const userMessage = handleProviderError(
+        'ccusage',
+        'fetch usage entries',
+        error,
+      );
+      throw new Error(userMessage);
     }
   }
 }

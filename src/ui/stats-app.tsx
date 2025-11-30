@@ -24,7 +24,7 @@ const formatCachePair = (creationTokens: number, readTokens: number): string =>
 interface UsageRow extends TableRow {
   Name: string;
   Messages: string;
-  'Usage Days': string;
+  'Days Used': string;
   Input: string;
   Output: string;
   'Cache W/R': string;
@@ -43,7 +43,7 @@ const buildUsageRow = (
 ): UsageRow => ({
   Name: chalk.bold(displayName ?? row.name),
   Messages: messageValue ?? formatCount(row.messageCount),
-  'Usage Days': formatCount(row.activeDays),
+  'Days Used': formatCount(row.activeDays),
   Input: formatTokens(row.inputTokens),
   Output: formatTokens(row.outputTokens),
   'Cache W/R': formatCachePair(row.cacheCreationTokens, row.cacheReadTokens),

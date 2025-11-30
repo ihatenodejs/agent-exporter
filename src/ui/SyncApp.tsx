@@ -2,7 +2,11 @@ import {Box, Text, useApp} from 'ink';
 import {useState, useEffect, useCallback} from 'react';
 
 import {ProviderStatusRow} from './ProviderStatusRow';
-import {getCleanErrorMessage, getErrorStack} from '../core/error-utils';
+import {
+  getCleanErrorMessage,
+  getErrorStack,
+  handleProviderError,
+} from '../core/error-utils';
 
 import type {ProviderSyncState} from './ProviderStatusRow';
 import type {ProviderAdapter, UnifiedMessage, UsageEntry} from '../core/types';
@@ -17,39 +21,17 @@ const getInstallationErrorMessage = (
   providerName: string,
   error: unknown,
 ): string | null => {
-  const errorMessage = getCleanErrorMessage(error);
+  const userMessage = handleProviderError(
+    providerName,
+    'sync operation',
+    error,
+  );
 
-  if (['qwen', 'gemini', 'opencode'].includes(providerName)) {
-    if (
-      errorMessage.includes('ENOENT') &&
-      errorMessage.includes('no such file or directory')
-    ) {
-      return 'Not installed';
-    }
+  if (userMessage.includes('failed for')) {
+    return null;
   }
 
-  if (providerName === 'codex') {
-    if (errorMessage.includes('totals') && errorMessage.includes('null')) {
-      return 'No usage data found';
-    }
-    if (
-      errorMessage.includes('bunx') ||
-      errorMessage.includes('command not found')
-    ) {
-      return 'Not installed';
-    }
-  }
-
-  if (providerName === 'ccusage') {
-    if (
-      errorMessage.includes('bunx') ||
-      errorMessage.includes('command not found')
-    ) {
-      return 'Not installed';
-    }
-  }
-
-  return null;
+  return userMessage;
 };
 
 interface SyncAppProps {
