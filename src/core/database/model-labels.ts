@@ -132,6 +132,12 @@ export const MODEL_LABELS: ModelLabelEntry[] = [
     model: 'kimi-for-coding',
     label: 'Kimi For Coding',
   },
+
+  // Stealth Models
+  {
+    model: 'big-pickle',
+    label: 'Big Pickle',
+  },
 ];
 
 const MODEL_LOOKUP = new Map(
