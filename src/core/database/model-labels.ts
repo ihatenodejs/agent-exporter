@@ -6,8 +6,8 @@
  */
 
 export interface ModelLabelEntry {
-  /** Raw model identifier as reported by providers */
-  model: string;
+  /** Raw model identifier(s) as reported by providers */
+  model: string | string[];
   /** Provider identifier (optional) */
   provider?: string;
   /** Friendly name to display in the CLI */
@@ -31,7 +31,10 @@ export const MODEL_LABELS: ModelLabelEntry[] = [
     label: 'Claude Sonnet 4.5 Sonnet (2025-09-29)',
   },
   {
-    model: 'claude-sonnet-4.5',
+    model: [
+      'claude-sonnet-4-5',
+      'claude-sonnet-4-5'
+    ],
     label: 'Claude Sonnet 4.5',
   },
   {
@@ -41,6 +44,17 @@ export const MODEL_LABELS: ModelLabelEntry[] = [
   {
     model: 'claude-haiku-4-5-20251001',
     label: 'Claude Haiku 4.5 (2025-10-01)',
+  },
+  {
+    model: [
+      'claude-haiku-4-5',
+      'claude-haiku-4.5'
+    ],
+    label: 'Claude Haiku 4.5',
+  },
+  {
+    model: 'claude-sonnet-4',
+    label: 'Claude Sonnet 4',
   },
 
   // OpenAI
@@ -94,12 +108,15 @@ export const MODEL_LABELS: ModelLabelEntry[] = [
 ];
 
 const MODEL_LOOKUP = new Map(
-  MODEL_LABELS.map((entry) => {
-    const key =
-      entry.provider !== undefined
-        ? `${entry.provider.toLowerCase()}::${entry.model.toLowerCase()}`
-        : entry.model.toLowerCase();
-    return [key, entry.label];
+  MODEL_LABELS.flatMap((entry) => {
+    const models = Array.isArray(entry.model) ? entry.model : [entry.model];
+    return models.map((model) => {
+      const key =
+        entry.provider !== undefined
+          ? `${entry.provider.toLowerCase()}::${model.toLowerCase()}`
+          : model.toLowerCase();
+      return [key, entry.label] as const;
+    });
   }),
 );
 
