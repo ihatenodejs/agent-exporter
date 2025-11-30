@@ -105,9 +105,32 @@ export const MODEL_LABELS: ModelLabelEntry[] = [
     label: 'GLM 4.5 Air',
   },
 
+  // Alibaba Qwen
   {
     model: 'coder-model',
     label: 'Qwen Coder',
+  },
+
+  // Moonshot
+  {
+    model: 'kimi-k2',
+    label: 'Kimi K2',
+  },
+  {
+    model: ['moonshotai/kimi-k2:free', 'moonshotai/kimi-k2'],
+    label: 'Kimi K2 (2025-07-11)',
+  },
+  {
+    model: ['kimi-k2-0905', 'moonshotai/kimi-k2-0905'],
+    label: 'Kimi K2 (2025-09-05)',
+  },
+  {
+    model: ['kimi-k2-thinking', 'moonshotai/kimi-k2-thinking'],
+    label: 'Kimi K2 Thinking',
+  },
+  {
+    model: 'kimi-for-coding',
+    label: 'Kimi For Coding',
   },
 ];
 

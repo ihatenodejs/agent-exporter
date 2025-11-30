@@ -201,6 +201,22 @@ export const FALLBACK_PRICES: FallbackModelPrice[] = [
     cacheWritePer1M: 0.3,
     cacheReadPer1M: 0.03,
   },
+
+  // Moonshot Models (Kimi)
+  {
+    model: [
+      'kimi-k2',
+      'moonshotai/kimi-k2',
+      'kimi-for-coding',
+      'kimi-k2-0905',
+      'moonshotai/kimi-k2-0905',
+      'kimi-k2-thinking',
+      'moonshotai/kimi-k2-thinking',
+    ],
+    inputPer1M: 0.6,
+    outputPer1M: 2.5,
+    cacheReadPer1M: 0.11,
+  },
 ];
 
 /**
