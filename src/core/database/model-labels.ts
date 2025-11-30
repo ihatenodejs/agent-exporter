@@ -84,6 +84,10 @@ export const MODEL_LABELS: ModelLabelEntry[] = [
     model: 'gemini-2.5-pro-preview-06-05',
     label: 'Gemini 2.5 Pro Preview (2025-06-05)',
   },
+  {
+    model: 'gemini-3-pro-preview',
+    label: 'Gemini 3 Pro Preview',
+  },
 
   // Alibaba Qwen
   {

@@ -113,6 +113,24 @@ export const FALLBACK_PRICES: FallbackModelPrice[] = [
     },
     cacheWritePer1M: 1.625,
   },
+  {
+    model: 'gemini-3-pro-preview',
+    inputPer1M: {
+      threshold: 200_000,
+      belowOrEqual: 2.0,
+      above: 4.0,
+    },
+    outputPer1M: {
+      threshold: 200_000,
+      belowOrEqual: 12.0,
+      above: 18.0,
+    },
+    cacheReadPer1M: {
+      threshold: 200_000,
+      belowOrEqual: 0.2,
+      above: 0.4,
+    },
+  },
 
   // Anthropic Models
   {
