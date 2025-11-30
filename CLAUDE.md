@@ -177,7 +177,6 @@ export const FALLBACK_PRICES: FallbackModelPrice[] = [
     outputPer1M: 2.0, // Cost per 1M output tokens
     cacheWritePer1M: 1.25,
     cacheReadPer1M: 0.1,
-    notes: 'Optional description',
   },
 ];
 ```

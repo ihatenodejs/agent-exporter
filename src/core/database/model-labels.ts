@@ -12,8 +12,6 @@ export interface ModelLabelEntry {
   provider?: string;
   /** Friendly name to display in the CLI */
   label: string;
-  /** Additional context about the label */
-  notes?: string;
 }
 
 export const MODEL_LABELS: ModelLabelEntry[] = [
@@ -31,7 +29,7 @@ export const MODEL_LABELS: ModelLabelEntry[] = [
     label: 'Claude Sonnet 4.5 Sonnet (2025-09-29)',
   },
   {
-    model: ['claude-sonnet-4-5', 'claude-sonnet-4-5'],
+    model: ['claude-sonnet-4-5', 'claude-sonnet-4.5'],
     label: 'Claude Sonnet 4.5',
   },
   {
@@ -59,6 +57,18 @@ export const MODEL_LABELS: ModelLabelEntry[] = [
   {
     model: 'gpt-5-codex',
     label: 'GPT-5 Codex',
+  },
+  {
+    model: 'gpt-5.1',
+    label: 'GPT-5.1',
+  },
+  {
+    model: 'gpt-5.1-codex',
+    label: 'GPT-5.1 Codex',
+  },
+  {
+    model: 'gpt-5.1-codex-max',
+    label: 'GPT-5.1 Codex Max',
   },
 
   // Google Gemini

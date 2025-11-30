@@ -1,6 +1,11 @@
 import {calcPrice} from '@pydantic/genai-prices';
 
-import {findFallbackPrice, type FallbackModelPrice} from './database/prices';
+import {
+  calculateTieredCost,
+  findFallbackPrice,
+  type FallbackModelPrice,
+  type TieredPrice,
+} from './database/prices';
 
 export interface ModelPricing {
   inputPer1M: number;
@@ -50,12 +55,28 @@ function calculateFromFallback(
   cacheCreationTokens: number,
   cacheReadTokens: number,
 ): number {
-  const inputCost = (inputTokens / 1_000_000) * fallbackPrice.inputPer1M;
-  const outputCost = (outputTokens / 1_000_000) * fallbackPrice.outputPer1M;
-  const cacheWriteCost =
-    (cacheCreationTokens / 1_000_000) * (fallbackPrice.cacheWritePer1M ?? 0);
-  const cacheReadCost =
-    (cacheReadTokens / 1_000_000) * (fallbackPrice.cacheReadPer1M ?? 0);
+  const thresholdTotal = inputTokens + cacheCreationTokens + cacheReadTokens;
+
+  const inputCost = calculateTieredCost(
+    inputTokens,
+    fallbackPrice.inputPer1M,
+    thresholdTotal,
+  );
+  const outputCost = calculateTieredCost(
+    outputTokens,
+    fallbackPrice.outputPer1M,
+    thresholdTotal,
+  );
+  const cacheWriteCost = calculateTieredCost(
+    cacheCreationTokens,
+    fallbackPrice.cacheWritePer1M,
+    thresholdTotal,
+  );
+  const cacheReadCost = calculateTieredCost(
+    cacheReadTokens,
+    fallbackPrice.cacheReadPer1M,
+    thresholdTotal,
+  );
 
   return inputCost + outputCost + cacheWriteCost + cacheReadCost;
 }
@@ -70,6 +91,17 @@ export function calculateCost(
 ): number {
   if (!model || model.trim() === '') {
     return 0;
+  }
+
+  const fallbackPrice = findFallbackPrice(model, providerId);
+  if (fallbackPrice) {
+    return calculateFromFallback(
+      fallbackPrice,
+      inputTokens,
+      outputTokens,
+      cacheCreationTokens,
+      cacheReadTokens,
+    );
   }
 
   const usage = {
@@ -97,17 +129,6 @@ export function calculateCost(
     return totalCost;
   }
 
-  const fallbackPrice = findFallbackPrice(model, providerId);
-  if (fallbackPrice) {
-    return calculateFromFallback(
-      fallbackPrice,
-      inputTokens,
-      outputTokens,
-      cacheCreationTokens,
-      cacheReadTokens,
-    );
-  }
-
   return 0;
 }
 
@@ -127,6 +148,45 @@ export function calculateDetailedCost(
       cacheReadCost: 0,
       totalCost: 0,
       source: 'none',
+    };
+  }
+
+  const fallbackPrice = findFallbackPrice(model, providerId);
+  if (fallbackPrice) {
+    const thresholdTotal = inputTokens + cacheCreationTokens + cacheReadTokens;
+
+    const inputCost = calculateTieredCost(
+      inputTokens,
+      fallbackPrice.inputPer1M,
+      thresholdTotal,
+    );
+    const outputCost = calculateTieredCost(
+      outputTokens,
+      fallbackPrice.outputPer1M,
+      thresholdTotal,
+    );
+    const cacheWriteCost = calculateTieredCost(
+      cacheCreationTokens,
+      fallbackPrice.cacheWritePer1M,
+      thresholdTotal,
+    );
+    const cacheReadCost = calculateTieredCost(
+      cacheReadTokens,
+      fallbackPrice.cacheReadPer1M,
+      thresholdTotal,
+    );
+
+    return {
+      totalCost: inputCost + outputCost + cacheWriteCost + cacheReadCost,
+      inputCost,
+      outputCost,
+      cacheWriteCost,
+      cacheReadCost,
+      providerName: fallbackPrice.provider,
+      modelName: Array.isArray(fallbackPrice.model)
+        ? fallbackPrice.model[0]
+        : fallbackPrice.model,
+      source: 'fallback',
     };
   }
 
@@ -161,27 +221,6 @@ export function calculateDetailedCost(
       providerName: result.provider.name,
       modelName: result.model.name,
       source: 'genai-prices',
-    };
-  }
-
-  const fallbackPrice = findFallbackPrice(model, providerId);
-  if (fallbackPrice) {
-    const inputCost = (inputTokens / 1_000_000) * fallbackPrice.inputPer1M;
-    const outputCost = (outputTokens / 1_000_000) * fallbackPrice.outputPer1M;
-    const cacheWriteCost =
-      (cacheCreationTokens / 1_000_000) * (fallbackPrice.cacheWritePer1M ?? 0);
-    const cacheReadCost =
-      (cacheReadTokens / 1_000_000) * (fallbackPrice.cacheReadPer1M ?? 0);
-
-    return {
-      totalCost: inputCost + outputCost + cacheWriteCost + cacheReadCost,
-      inputCost,
-      outputCost,
-      cacheWriteCost,
-      cacheReadCost,
-      providerName: fallbackPrice.provider,
-      modelName: fallbackPrice.model,
-      source: 'fallback',
     };
   }
 
@@ -228,11 +267,19 @@ export function getModelPricing(
 
   const fallbackPrice = findFallbackPrice(model, providerId);
   if (fallbackPrice) {
+    const extractBaseRate = (
+      price: number | TieredPrice | undefined,
+    ): number => {
+      if (!price) return 0;
+      if (typeof price === 'number') return price;
+      return price.belowOrEqual;
+    };
+
     return {
-      inputPer1M: fallbackPrice.inputPer1M,
-      outputPer1M: fallbackPrice.outputPer1M,
-      cacheWritePer1M: fallbackPrice.cacheWritePer1M ?? 0,
-      cacheReadPer1M: fallbackPrice.cacheReadPer1M ?? 0,
+      inputPer1M: extractBaseRate(fallbackPrice.inputPer1M),
+      outputPer1M: extractBaseRate(fallbackPrice.outputPer1M),
+      cacheWritePer1M: extractBaseRate(fallbackPrice.cacheWritePer1M),
+      cacheReadPer1M: extractBaseRate(fallbackPrice.cacheReadPer1M),
     };
   }
 

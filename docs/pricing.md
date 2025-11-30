@@ -30,7 +30,6 @@ export const FALLBACK_PRICES: FallbackModelPrice[] = [
     outputPer1M: 2.0,
     cacheWritePer1M: 1.25,
     cacheReadPer1M: 0.1,
-    notes: 'Custom pricing',
   },
   // Add more models...
 ];
