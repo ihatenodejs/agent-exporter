@@ -51,9 +51,10 @@
   },
   "homepage": "https://github.com/ihatenodejs/agent-exporter#readme",
   "engines": {
-    "bun": ">=1.0.0"
+    "bun": ">=1.3.14"
   },
   "dependencies": {
+    "@oh-my-pi/pi-catalog": "^17.2.4",
     "@pydantic/genai-prices": "^0.1.1",
     "chalk": "^6.0.0",
     "commander": "^15.0.0",

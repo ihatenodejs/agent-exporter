@@ -56,6 +56,7 @@ describe('harness CLI command', () => {
     expect(bare.stdout).toContain('  gemini');
     expect(bare.stdout).toContain('  ccusage');
     expect(bare.stdout).toContain('  codex');
+    expect(bare.stdout).toContain('  oh-my-pi');
     expect(bare.stdout).toContain(
       'Harness state is stored in the selected database.',
     );
@@ -78,7 +79,15 @@ describe('harness CLI command', () => {
     expect(sync.stdout).not.toContain('Syncing gemini...');
     expect(sync.stdout).not.toContain('Syncing ccusage...');
     expect(sync.stdout).not.toContain('Syncing codex...');
-    for (const name of ['opencode', 'qwen', 'gemini', 'ccusage', 'codex']) {
+    expect(sync.stdout).not.toContain('Syncing oh-my-pi...');
+    for (const name of [
+      'opencode',
+      'qwen',
+      'gemini',
+      'ccusage',
+      'codex',
+      'oh-my-pi',
+    ]) {
       expect(sync.stderr).toContain(
         `Harness "${name}" is disabled. Enable it with: agent-exporter harness ${name} enable --db ${databasePath}`,
       );
@@ -146,7 +155,7 @@ describe('harness CLI command', () => {
 
     expect(invalidName.exitCode).not.toBe(0);
     expect(invalidName.stderr.trim()).toBe(
-      'Invalid harness: invalid. Expected one of: opencode, qwen, gemini, ccusage, codex.',
+      'Invalid harness: invalid. Expected one of: opencode, qwen, gemini, ccusage, codex, oh-my-pi.',
     );
     expect(invalidState.exitCode).not.toBe(0);
     expect(invalidState.stderr.trim()).toBe(

@@ -1,0 +1,5 @@
+{"type":"title","timestamp":"2023-11-14T22:13:20.000Z","title":"Fixture session"}
+{"type":"session","id":"omp-session-1"}
+{"type":"message","id":"omp-message-1","timestamp":"2023-11-14T22:13:20.000Z","message":{"role":"assistant","provider":"anthropic","model":"claude-sonnet-4-5","timestamp":1700000000000,"usage":{"input":120,"output":240,"cacheWrite":30,"cacheRead":10,"totalTokens":400,"cost":{"total":4.2}}}}
+{"type":"message","id":"omp-user-1","timestamp":"2023-11-14T22:13:21.000Z","message":{"role":"user","provider":"anthropic","model":"claude-sonnet-4-5","timestamp":1700000001000,"usage":{"input":1,"output":0,"cacheWrite":0,"cacheRead":0,"totalTokens":1}}}
+{"malformed":

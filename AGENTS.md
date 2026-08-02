@@ -1,4 +1,4 @@
-Agent Exporter is a CLI tool for tracking and analyzing LLM usage costs across multiple AI agent providers (OpenCode, Claude Code/CCUsage, Codex, Gemini, Qwen). It uses SQLite for storage, calculates costs using @pydantic/genai-prices with a fallback pricing database, and exports data in various formats.
+Agent Exporter is a CLI tool for tracking and analyzing LLM usage costs across multiple AI agent providers (Oh My Pi, OpenCode, Claude Code/CCUsage, Codex, Gemini, Qwen). It uses SQLite for storage, calculates costs using @pydantic/genai-prices with a fallback pricing database, and exports data in various formats.
 
 ## Development Commands
 
@@ -35,25 +35,25 @@ bun link
 
 1. **Providers** (src/providers/) fetch raw usage data from each platform
 2. **DatabaseManager** (src/database/) stores unified messages in SQLite
-3. **Pricing** (src/core/pricing.ts) calculates costs using genai-prices → fallback database → $0
+3. **Pricing** (src/core/pricing.ts) resolves Oh My Pi stored/catalog costs, then genai-prices → fallback database → $0
 4. **Exporters** (src/exporters/) transform data into output formats
 5. **CLI** (src/cli.ts) orchestrates everything via Commander.js
 
 ### Key Patterns
 
-**Provider Adapters**: All providers implement `ProviderAdapter` interface with:
+**Provider Adapters**: Each provider implements one member of the `ProviderAdapter` union:
 
-- `name: string` - Provider identifier
-- `dataType: "messages" | "usage entries"` - Type of data returned
-- `fetchMessages(): Promise<UnifiedMessage[]>` - Fetches and normalizes data
+- `MessagesProviderAdapter`: `name`, `dataType: 'messages'`, and `fetchMessages(): Promise<UnifiedMessage[]>`
+- `UsageProviderAdapter`: `name`, `dataType: 'usage entries'`, and `fetchUsageEntries(): Promise<UsageEntry[]>`
 
-**Unified Message Format**: All provider data is converted to `UnifiedMessage` (src/core/types.ts) with standardized token counts (input, output, reasoning, cache creation/read), cost, and metadata.
+**Normalized Data**: Message providers return `UnifiedMessage[]` with standardized token counts (input, output, reasoning, cache creation/read), cost, and metadata. Usage providers return `UsageEntry[]`.
 
-**Two-Tier Pricing**:
+**Pricing Resolution**:
 
-1. Primary: `@pydantic/genai-prices` via `calcPrice()` - handles hundreds of models automatically
-2. Fallback: `src/core/database/prices.ts` - custom pricing for models not in genai-prices
-3. Default: $0 for unknown models
+1. Oh My Pi: preserve non-zero recorded totals; otherwise use the bundled `@oh-my-pi/pi-catalog` rates
+2. Primary: `@pydantic/genai-prices` via `calcPrice()`; Oh My Pi wrapper records search without the wrapper provider ID
+3. Fallback: `src/core/database/prices.ts` for exact and regex-matched custom prices
+4. Default: $0 for unknown models
 
 **Database Schema**: Single `messages` table with indexed fields (date, provider, model, session_id) and `sync_state` table for tracking last sync per provider.
 
@@ -97,11 +97,11 @@ bun link
 
 ## Adding New Providers
 
-1. Create `src/providers/your-provider.ts` implementing `ProviderAdapter`
-2. Transform source data to `UnifiedMessage[]` format
+1. Create `src/providers/your-provider.ts` implementing `MessagesProviderAdapter` or `UsageProviderAdapter`
+2. Transform source data to `UnifiedMessage[]` or `UsageEntry[]`, respectively
 3. Use utility functions for common operations (see below)
-4. Add provider to CLI in `src/cli.ts` sync command
-5. Update provider list in README.md
+4. Add the harness name and adapter factory to `HARNESS_NAMES` and `createProviderAdapter` in `src/cli.ts`
+5. Update the provider list in README.md
 
 Example structure:
 
@@ -110,8 +110,9 @@ import {normalizeAndLogError} from '../core/error-utils';
 import {getDirectories, getFiles, readJsonFile} from '../core/fs-utils';
 import {spawnCommandAndParseJson} from '../core/spawn-utils';
 import {calculateCost} from '../core/pricing';
+import type {MessagesProviderAdapter, UnifiedMessage} from '../core/types';
 
-export class YourProviderAdapter implements ProviderAdapter {
+export class YourProviderAdapter implements MessagesProviderAdapter {
   name = 'your-provider' as const;
   dataType = 'messages' as const;
 
@@ -164,6 +165,7 @@ Edit `src/core/database/prices.ts` to add models not in genai-prices:
 export const FALLBACK_PRICES: FallbackModelPrice[] = [
   {
     model: 'your-model-name',
+    modelPattern: /^your-model-name.*$/i, // Optional; match versioned/case variants
     provider: 'provider-id',
     inputPer1M: 1.0, // Cost per 1M input tokens
     outputPer1M: 2.0, // Cost per 1M output tokens

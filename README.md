@@ -14,6 +14,7 @@ As I do not use all of these harnesses, I cannot maintain all of them at once. P
 
 ### Priority Support
 
+- Oh My Pi
 - OpenCode
 - Antigravity CLI
 

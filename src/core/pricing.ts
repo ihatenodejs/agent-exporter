@@ -1,3 +1,4 @@
+import bundledModels from '@oh-my-pi/pi-catalog/models.json';
 import {calcPrice} from '@pydantic/genai-prices';
 
 import {findFallbackPrice, type FallbackModelPrice} from './database/prices';
@@ -60,6 +61,68 @@ function calculateFromFallback(
   return inputCost + outputCost + cacheWriteCost + cacheReadCost;
 }
 
+interface BundledModel {
+  cost: {
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+  };
+}
+
+const getBundledModels = (): Partial<
+  Record<string, Record<string, BundledModel>>
+> => bundledModels;
+
+const getBundledModel = (
+  provider: string,
+  model: string,
+): BundledModel | undefined => getBundledModels()[provider]?.[model];
+
+export function calculateOhMyPiCatalogCost(
+  provider: string,
+  model: string,
+  inputTokens: number,
+  outputTokens: number,
+  cacheCreationTokens: number,
+  cacheReadTokens: number,
+): number | null {
+  let bundledModel = getBundledModel(provider, model);
+
+  if (
+    (!bundledModel ||
+      (bundledModel.cost.input === 0 &&
+        bundledModel.cost.output === 0 &&
+        bundledModel.cost.cacheRead === 0 &&
+        bundledModel.cost.cacheWrite === 0)) &&
+    provider === 'openai-codex'
+  ) {
+    bundledModel = getBundledModel('openai', model);
+  }
+
+  if (
+    !bundledModel ||
+    (bundledModel.cost.input === 0 &&
+      bundledModel.cost.output === 0 &&
+      bundledModel.cost.cacheRead === 0 &&
+      bundledModel.cost.cacheWrite === 0)
+  ) {
+    return null;
+  }
+
+  const {input, output, cacheRead, cacheWrite} = bundledModel.cost;
+  return (
+    (input * inputTokens +
+      output * outputTokens +
+      cacheRead * cacheReadTokens +
+      cacheWrite * cacheCreationTokens) /
+    1_000_000
+  );
+}
+
+const getPricingProviderId = (providerId?: string): string | undefined =>
+  providerId === 'oh-my-pi' ? undefined : providerId;
+
 export function calculateCost(
   model: string,
   inputTokens: number,
@@ -77,7 +140,12 @@ export function calculateCost(
     output_tokens: outputTokens,
   };
 
-  const result = calcPrice(usage, model, providerId ? {providerId} : undefined);
+  const pricingProviderId = getPricingProviderId(providerId);
+  const result = calcPrice(
+    usage,
+    model,
+    pricingProviderId ? {providerId: pricingProviderId} : undefined,
+  );
 
   if (result) {
     let totalCost = result.total_price;
@@ -97,7 +165,7 @@ export function calculateCost(
     return totalCost;
   }
 
-  const fallbackPrice = findFallbackPrice(model, providerId);
+  const fallbackPrice = findFallbackPrice(model, pricingProviderId);
   if (fallbackPrice) {
     return calculateFromFallback(
       fallbackPrice,

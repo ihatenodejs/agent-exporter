@@ -29,6 +29,7 @@ import {
 } from './providers/ccusage';
 import {CodexAdapter} from './providers/codex';
 import {GeminiAdapter} from './providers/gemini';
+import {OhMyPiAdapter} from './providers/oh-my-pi';
 import {OpenCodeAdapter} from './providers/opencode';
 import {QwenAdapter} from './providers/qwen';
 
@@ -44,6 +45,7 @@ const HARNESS_NAMES = [
   'gemini',
   'ccusage',
   'codex',
+  'oh-my-pi',
 ] as const;
 
 type HarnessName = (typeof HARNESS_NAMES)[number];
@@ -86,6 +88,7 @@ const createProviderAdapter: Record<HarnessName, () => ProviderAdapter> = {
   gemini: () => new GeminiAdapter(),
   ccusage: () => new CCUsageAdapter(),
   codex: () => new CodexAdapter(),
+  'oh-my-pi': () => new OhMyPiAdapter(),
 };
 
 const toError = (value: unknown): Error => {
@@ -167,6 +170,7 @@ Supported harnesses (disabled by default):
   gemini
   ccusage
   codex
+  oh-my-pi
 
 Harness state is stored in the selected database.
 
@@ -219,7 +223,7 @@ program
   .description('Sync data from providers to database')
   .option(
     '-p, --provider <provider>',
-    'Provider to sync (opencode, qwen, gemini, ccusage, codex, or all)',
+    'Provider to sync (opencode, qwen, gemini, ccusage, codex, oh-my-pi, or all)',
     'all',
   )
   .option('-d, --db <path>', 'Database path', DEFAULT_DB_PATH)
