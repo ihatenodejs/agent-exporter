@@ -1,18 +1,27 @@
 # Agent Exporter
 
-Export usage statistics from various agents.
+Export usage statistics from various harnesses.
 
 ## Documentation
 
 For detailed information on installation, usage, and development, please see the [full documentation](./docs/index.md).
 
-## Supported Providers
+If you are an AI agent, please see the [agent documentation](./AGENTS.md).
+
+## Supported Harnesses
+
+As I do not use all of these harnesses, I cannot maintain all of them at once. Priority Support harnesses are tools I use and actively maintain. Legacy Support may still work, though may go unmaintained at times.
+
+### Priority Support
 
 - OpenCode
+- Antigravity CLI
+
+### Legacy Support
+
 - Claude Code (via `ccusage`)
 - Codex (via `@ccusage/codex`)
-- Gemini CLI
-- Qwen CLI
+- Qwen CLI (likely broken)
 
 ## License
 
