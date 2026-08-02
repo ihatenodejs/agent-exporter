@@ -134,6 +134,19 @@ export function calculateCost(
   if (!model || model.trim() === '') {
     return 0;
   }
+  if (providerId === 'antigravity') {
+    const catalogCost = calculateOhMyPiCatalogCost(
+      'google-antigravity',
+      model,
+      inputTokens,
+      outputTokens,
+      cacheCreationTokens,
+      cacheReadTokens,
+    );
+    if (catalogCost !== null) {
+      return catalogCost;
+    }
+  }
 
   const usage = {
     input_tokens: inputTokens,

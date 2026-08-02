@@ -22,13 +22,13 @@ import {DatabaseManager} from './database/manager';
 import {initializeDatabase} from './database/schema';
 import {CCUsageExporter} from './exporters/ccusage';
 import {JSONExporter} from './exporters/json';
+import {AntigravityAdapter} from './providers/antigravity';
 import {
   CCUsageAdapter,
   CCUsageExportSchema,
   convertCcUsageExportToMessages,
 } from './providers/ccusage';
 import {CodexAdapter} from './providers/codex';
-import {GeminiAdapter} from './providers/gemini';
 import {OhMyPiAdapter} from './providers/oh-my-pi';
 import {OpenCodeAdapter} from './providers/opencode';
 import {QwenAdapter} from './providers/qwen';
@@ -42,7 +42,7 @@ const DEFAULT_DB_PATH = join(homedir(), '.agent-exporter.db');
 const HARNESS_NAMES = [
   'opencode',
   'qwen',
-  'gemini',
+  'antigravity',
   'ccusage',
   'codex',
   'oh-my-pi',
@@ -85,7 +85,7 @@ interface RangeCommandOptions extends StatsCommandOptions {
 const createProviderAdapter: Record<HarnessName, () => ProviderAdapter> = {
   opencode: () => new OpenCodeAdapter(),
   qwen: () => new QwenAdapter(),
-  gemini: () => new GeminiAdapter(),
+  antigravity: () => new AntigravityAdapter(),
   ccusage: () => new CCUsageAdapter(),
   codex: () => new CodexAdapter(),
   'oh-my-pi': () => new OhMyPiAdapter(),
@@ -166,6 +166,11 @@ program
   .description(packageJson.description)
   .version(packageJson.version);
 
+program.helpOption('-h, --help', 'display help for command');
+program.action(() => {
+  program.help();
+});
+
 const VALID_PROVIDERS = [...HARNESS_NAMES, 'all'];
 
 const harnessCommand = program
@@ -178,7 +183,7 @@ const harnessCommand = program
 Supported harnesses (disabled by default):
   opencode
   qwen
-  gemini
+  antigravity
   ccusage
   codex
   oh-my-pi
@@ -234,7 +239,7 @@ program
   .description('Sync data from providers to database')
   .option(
     '-p, --provider <provider>',
-    'Provider to sync (opencode, qwen, gemini, ccusage, codex, oh-my-pi, or all)',
+    'Provider to sync (opencode, qwen, antigravity, ccusage, codex, oh-my-pi, or all)',
     'all',
   )
   .option('-d, --db <path>', 'Database path', DEFAULT_DB_PATH)

@@ -1,3 +1,5 @@
+import {fileURLToPath} from 'node:url';
+
 import {describe, expect, it} from 'bun:test';
 import dayjs from 'dayjs';
 
@@ -5,6 +7,21 @@ import {
   CCUsageExportSchema,
   convertCcUsageExportToMessages,
 } from '../providers/ccusage';
+
+const cliPath = fileURLToPath(new URL('../cli.ts', import.meta.url));
+
+const runCli = async (
+  ...args: string[]
+): Promise<{exitCode: number; output: string}> => {
+  const child = Bun.spawn([process.execPath, cliPath, ...args], {
+    stdout: 'pipe',
+  });
+  const [exitCode, output] = await Promise.all([
+    child.exited,
+    new Response(child.stdout).text(),
+  ]);
+  return {exitCode, output};
+};
 
 const loadSample = async (): Promise<unknown> => {
   const file = Bun.file(new URL('./sample-cc.json', import.meta.url));
@@ -65,5 +82,35 @@ describe('CLI ccusage ingestion sample', () => {
       date: '2025-01-01',
     });
     expect(message.timestamp).toBe(expectedTimestamp);
+  });
+});
+
+describe('CLI help', () => {
+  it('displays top-level help successfully with no arguments', async () => {
+    const {exitCode, output} = await runCli();
+
+    expect(exitCode).toBe(0);
+    expect(output).toContain('Usage: agent-exporter [options] [command]');
+    expect(output).toContain('Commands:');
+  });
+
+  it.each([
+    'harness',
+    'sync',
+    'ingest',
+    'export',
+    'json',
+    'live',
+    'daily',
+    'weekly',
+    'monthly',
+    'yearly',
+    'range',
+  ])('displays --help for %s', async (command) => {
+    const {exitCode, output} = await runCli(command, '--help');
+
+    expect(exitCode).toBe(0);
+    expect(output).toContain(`Usage: agent-exporter ${command}`);
+    expect(output).toContain('-h, --help');
   });
 });

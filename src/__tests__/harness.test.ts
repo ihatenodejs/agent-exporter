@@ -34,7 +34,7 @@ describe('harness CLI command', () => {
     expect(bare.stdout).toContain('Supported harnesses (disabled by default):');
     expect(bare.stdout).toContain('  opencode');
     expect(bare.stdout).toContain('  qwen');
-    expect(bare.stdout).toContain('  gemini');
+    expect(bare.stdout).toContain('  antigravity');
     expect(bare.stdout).toContain('  ccusage');
     expect(bare.stdout).toContain('  codex');
     expect(bare.stdout).toContain('  oh-my-pi');
@@ -57,14 +57,14 @@ describe('harness CLI command', () => {
     expect(sync.stdout).toContain('Syncing data from all...');
     expect(sync.stdout).not.toContain('Syncing opencode...');
     expect(sync.stdout).not.toContain('Syncing qwen...');
-    expect(sync.stdout).not.toContain('Syncing gemini...');
+    expect(sync.stdout).not.toContain('Syncing antigravity...');
     expect(sync.stdout).not.toContain('Syncing ccusage...');
     expect(sync.stdout).not.toContain('Syncing codex...');
     expect(sync.stdout).not.toContain('Syncing oh-my-pi...');
     for (const name of [
       'opencode',
       'qwen',
-      'gemini',
+      'antigravity',
       'ccusage',
       'codex',
       'oh-my-pi',
@@ -117,6 +117,31 @@ describe('harness CLI command', () => {
     expect(sync.stdout).not.toContain('Syncing ccusage...');
   });
 
+  it('enables Antigravity and rejects the retired Gemini harness', async () => {
+    const databasePath = await createTemporaryDatabasePath();
+    const enabled = await runCli(
+      'harness',
+      'antigravity',
+      'enable',
+      '--db',
+      databasePath,
+    );
+    const retired = await runCli(
+      'harness',
+      'gemini',
+      'enable',
+      '--db',
+      databasePath,
+    );
+
+    expect(enabled.exitCode).toBe(0);
+    expect(enabled.stdout.trim()).toBe('Harness "antigravity" enabled.');
+    expect(retired.exitCode).not.toBe(0);
+    expect(retired.stderr.trim()).toBe(
+      'Invalid harness: gemini. Expected one of: opencode, qwen, antigravity, ccusage, codex, oh-my-pi.',
+    );
+  });
+
   it('rejects invalid harness names and states', async () => {
     const databasePath = await createTemporaryDatabasePath();
     const invalidName = await runCli(
@@ -136,7 +161,7 @@ describe('harness CLI command', () => {
 
     expect(invalidName.exitCode).not.toBe(0);
     expect(invalidName.stderr.trim()).toBe(
-      'Invalid harness: invalid. Expected one of: opencode, qwen, gemini, ccusage, codex, oh-my-pi.',
+      'Invalid harness: invalid. Expected one of: opencode, qwen, antigravity, ccusage, codex, oh-my-pi.',
     );
     expect(invalidState.exitCode).not.toBe(0);
     expect(invalidState.stderr.trim()).toBe(

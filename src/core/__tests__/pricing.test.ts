@@ -146,6 +146,26 @@ describe('calculateCost', () => {
     ).toBeCloseTo(1.3086, 5);
   });
 
+  it('uses the Antigravity catalog price for imported model usage', () => {
+    setCatalogModel('google-antigravity', 'gemini-3.6-flash', {
+      input: 1.5,
+      output: 7.5,
+      cacheRead: 0.15,
+      cacheWrite: 0,
+    });
+
+    expect(
+      calculateCost(
+        'gemini-3.6-flash',
+        69_834,
+        27_974,
+        0,
+        248_611,
+        'antigravity',
+      ),
+    ).toBeCloseTo(0.35184765, 8);
+  });
+
   it('returns zero cost when neither genai nor fallback prices exist', () => {
     calcPriceMock.mockReturnValue(null as CalcPriceResult);
 

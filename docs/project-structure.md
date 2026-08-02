@@ -23,7 +23,7 @@ agent-exporter/
 │   │   ├── opencode.ts            # OpenCode adapter
 │   │   ├── ccusage.ts             # Claude Code adapter
 │   │   ├── codex.ts               # Codex adapter
-│   │   ├── gemini.ts              # Gemini adapter
+│   │   ├── antigravity.ts         # Antigravity adapter
 │   │   └── qwen.ts                # Qwen adapter
 │   ├── exporters/                 # Export format handlers
 │   │   ├── ccusage.ts             # CCUsage exporter

@@ -1,4 +1,4 @@
-Agent Exporter is a CLI tool for tracking and analyzing LLM usage costs across multiple AI agent providers (Oh My Pi, OpenCode, Claude Code/CCUsage, Codex, Gemini, Qwen). It uses SQLite for storage, calculates costs using @pydantic/genai-prices with a fallback pricing database, and exports data in various formats.
+Agent Exporter is a CLI tool for tracking and analyzing LLM usage costs across multiple AI agent providers (Oh My Pi, OpenCode, Claude Code/CCUsage, Codex, Antigravity, Qwen). It uses SQLite for storage, calculates costs using @pydantic/genai-prices with a fallback pricing database, and exports data in various formats.
 
 ## Development Commands
 

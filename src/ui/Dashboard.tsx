@@ -1,6 +1,6 @@
 import chalk from 'chalk';
 import {Box, Text, useApp, useInput, useStdout} from 'ink';
-import {useState, useEffect, useCallback, useMemo} from 'react';
+import {useState, useEffect, useCallback, useMemo, useRef} from 'react';
 
 import {
   formatCount,
@@ -99,6 +99,7 @@ export const Dashboard = ({
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshInterval, setRefreshInterval] = useState(30); // seconds
   const [timeUntilRefresh, setTimeUntilRefresh] = useState(refreshInterval);
+  const timeUntilRefreshRef = useRef(timeUntilRefresh);
   const [showHelp, setShowHelp] = useState(false);
   const {stdout} = useStdout();
   const [terminalSize, setTerminalSize] = useState(() => ({
@@ -128,6 +129,7 @@ export const Dashboard = ({
   const handleRefresh = useCallback(
     (isManualRefresh = false) => {
       onRefresh(isManualRefresh, refreshInterval);
+      timeUntilRefreshRef.current = refreshInterval;
       setTimeUntilRefresh(refreshInterval);
     },
     [onRefresh, refreshInterval],
@@ -166,10 +168,12 @@ export const Dashboard = ({
     } else if (input === '+') {
       const newInterval = Math.min(300, refreshInterval + 10);
       setRefreshInterval(newInterval);
+      timeUntilRefreshRef.current = newInterval;
       setTimeUntilRefresh(newInterval);
     } else if (input === '-') {
       const newInterval = Math.max(10, refreshInterval - 10);
       setRefreshInterval(newInterval);
+      timeUntilRefreshRef.current = newInterval;
       setTimeUntilRefresh(newInterval);
     } else if (input === 'p') {
       handlePeriodToggle();
@@ -200,13 +204,16 @@ export const Dashboard = ({
     }
 
     const timer = setInterval(() => {
-      setTimeUntilRefresh((prev) => {
-        if (prev <= 1) {
-          handleRefresh();
-          return refreshInterval;
-        }
-        return prev - 1;
-      });
+      const shouldRefresh = timeUntilRefreshRef.current <= 1;
+      const nextTimeUntilRefresh = shouldRefresh
+        ? refreshInterval
+        : timeUntilRefreshRef.current - 1;
+      timeUntilRefreshRef.current = nextTimeUntilRefresh;
+      setTimeUntilRefresh(nextTimeUntilRefresh);
+
+      if (shouldRefresh) {
+        handleRefresh();
+      }
     }, 1000);
 
     return () => clearInterval(timer);

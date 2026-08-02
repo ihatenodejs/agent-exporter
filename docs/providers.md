@@ -26,12 +26,11 @@
 - Provides accurate costs directly from Codex
 - No additional configuration needed if you're already using Codex
 
-### Gemini Provider
+### Antigravity Provider
 
-- Fetches usage data from Google's Gemini API
-- Supports all Gemini model variants
-- Includes token usage and cost information
-- Requires appropriate API credentials to be configured
+- Reads local per-conversation SQLite databases from `~/.gemini/antigravity-cli/conversations/`
+- Imports invocation-level input, output, cache-read, and cache-write token data
+- Estimates API-equivalent cost when model pricing is available
 
 ### Qwen Provider
 
@@ -150,7 +149,7 @@ After implementing your adapter, update the CLI integration in `src/cli.ts`:
 const VALID_PROVIDERS = [
   'opencode',
   'qwen',
-  'gemini',
+  'antigravity',
   'ccusage',
   'codex',
   'your-provider', // Add your provider here
@@ -164,7 +163,7 @@ const VALID_PROVIDERS = [
 const createProviderAdapter: Record<SingleProvider, () => ProviderAdapter> = {
   opencode: () => new OpenCodeAdapter(),
   qwen: () => new QwenAdapter(),
-  gemini: () => new GeminiAdapter(),
+  antigravity: () => new AntigravityAdapter(),
   ccusage: () => new CCUsageAdapter(),
   codex: () => new CodexAdapter(),
   'your-provider': () => new YourProviderAdapter(), // Add your adapter here
