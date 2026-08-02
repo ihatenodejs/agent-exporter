@@ -107,7 +107,8 @@ Example structure:
 
 ```typescript
 import {normalizeAndLogError} from '../core/error-utils';
-import {getDirectories, getFiles, readJsonFile} from '../core/fs-utils';
+import {join} from 'path';
+import {getDirectories, readJsonFile} from '../core/fs-utils';
 import {spawnCommandAndParseJson} from '../core/spawn-utils';
 import {calculateCost} from '../core/pricing';
 import type {MessagesProviderAdapter, UnifiedMessage} from '../core/types';
@@ -118,31 +119,37 @@ export class YourProviderAdapter implements MessagesProviderAdapter {
 
   async fetchMessages(): Promise<UnifiedMessage[]> {
     try {
-      // For file-based providers:
-      const sessionDirs = getDirectories(this.dataPath);
-      const files = getFiles(sessionPath, {
-        prefix: 'session-',
-        suffix: '.json',
-      });
-      const data = await readJsonFile(filePath);
+      // File-based provider pseudocode (use this block as the method body):
+      {
+        const sessionPath = join(this.dataPath, 'sessions');
+        const unifiedMessages: UnifiedMessage[] = [];
+        for (const sessionDir of getDirectories(sessionPath)) {
+          const filePath = join(sessionPath, sessionDir, 'session.json');
+          const data = await readJsonFile(filePath);
+          const cost = calculateCost(
+            data.model,
+            data.inputTokens,
+            data.outputTokens,
+            data.cacheCreationTokens,
+            data.cacheReadTokens,
+            data.provider,
+          );
+          unifiedMessages.push(
+            /* transform data and cost into a UnifiedMessage */
+          );
+        }
+        return unifiedMessages;
+      }
 
-      // For command-based providers:
-      const data = await spawnCommandAndParseJson(
-        ['command', '--json'],
-        YourSchema,
-      );
-
-      // Calculate costs using the pricing utility
-      const cost = calculateCost(
-        model,
-        inputTokens,
-        outputTokens,
-        cacheCreationTokens,
-        cacheReadTokens,
-        provider,
-      );
-
-      return unifiedMessages;
+      // Command-based provider pseudocode (use this block as the method body):
+      {
+        const data = await spawnCommandAndParseJson(
+          ['command', '--json'],
+          YourSchema,
+        );
+        const unifiedMessages = data.map(/* transform each result */);
+        return unifiedMessages;
+      }
     } catch (error: unknown) {
       throw normalizeAndLogError('to fetch YourProvider data', error);
     }

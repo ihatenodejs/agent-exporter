@@ -1,11 +1,15 @@
-import {existsSync} from 'fs';
 import {homedir} from 'os';
 import {join} from 'path';
 
 import dayjs from 'dayjs';
 
 import {normalizeAndLogError} from '../core/error-utils';
-import {getDirectories, getFiles, readJsonFile} from '../core/fs-utils';
+import {
+  getDirectories,
+  getFiles,
+  pathExists,
+  readJsonFile,
+} from '../core/fs-utils';
 import {calculateCost} from '../core/pricing';
 import {
   MessageSchema,
@@ -26,11 +30,10 @@ export class OpenCodeAdapter implements MessagesProviderAdapter {
   async fetchMessages(): Promise<UnifiedMessage[]> {
     const unifiedMessages: UnifiedMessage[] = [];
 
-    if (!existsSync(this.messagesPath)) {
-      return unifiedMessages;
-    }
-
     try {
+      if (!pathExists(this.messagesPath)) {
+        return unifiedMessages;
+      }
       const allDirs = getDirectories(this.messagesPath);
       const sessionDirs = allDirs.filter((name) => name.startsWith('ses_'));
 

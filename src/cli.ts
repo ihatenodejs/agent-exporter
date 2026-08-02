@@ -117,6 +117,17 @@ const logError = (context: string, value: unknown): void => {
   }
 };
 
+const logDisabledHarnessWarning = (
+  harness: HarnessName,
+  databasePath: string,
+): void => {
+  console.error(
+    chalk.hex('#f97316')(
+      `Harness "${harness}" is disabled. Enable it with: agent-exporter harness ${harness} enable --db ${databasePath}`,
+    ),
+  );
+};
+
 /**
  * Transform usage entries to unified messages
  */
@@ -249,22 +260,14 @@ program
       if (options.provider !== 'all' && disabledHarnesses.length > 0) {
         dbManager.close();
         for (const name of disabledHarnesses) {
-          console.error(
-            chalk.hex('#f97316')(
-              `Harness "${name}" is disabled. Enable it with: agent-exporter harness ${name} enable --db ${options.db}`,
-            ),
-          );
+          logDisabledHarnessWarning(name, options.db);
         }
         process.exitCode = 1;
         return;
       }
 
       for (const name of disabledHarnesses) {
-        console.error(
-          chalk.hex('#f97316')(
-            `Harness "${name}" is disabled. Enable it with: agent-exporter harness ${name} enable --db ${options.db}`,
-          ),
-        );
+        logDisabledHarnessWarning(name, options.db);
       }
 
       console.log(`Syncing data from ${options.provider}...`);

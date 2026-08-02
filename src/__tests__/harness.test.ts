@@ -1,19 +1,8 @@
-import {mkdtemp, rm} from 'fs/promises';
-import {tmpdir} from 'os';
-import {join} from 'path';
+import {describe, expect, it} from 'bun:test';
 
-import {afterEach, describe, expect, it} from 'bun:test';
-
+import {createTemporaryDatabasePath} from './database-test-utils';
 import {DatabaseManager} from '../database/manager';
 import {initializeDatabase} from '../database/schema';
-
-const temporaryDirectories: string[] = [];
-
-const createDatabasePath = async (): Promise<string> => {
-  const directory = await mkdtemp(join(tmpdir(), 'agent-exporter-'));
-  temporaryDirectories.push(directory);
-  return join(directory, 'harness.db');
-};
 
 const runCli = async (
   ...arguments_: string[]
@@ -31,14 +20,6 @@ const runCli = async (
 
   return {exitCode, stderr, stdout};
 };
-
-afterEach(async () => {
-  await Promise.all(
-    temporaryDirectories
-      .splice(0)
-      .map((directory) => rm(directory, {force: true, recursive: true})),
-  );
-});
 
 describe('harness CLI command', () => {
   it('shows harness guidance when invoked without arguments or with help', async () => {
@@ -63,7 +44,7 @@ describe('harness CLI command', () => {
   });
 
   it('skips disabled harnesses when syncing all providers', async () => {
-    const databasePath = await createDatabasePath();
+    const databasePath = await createTemporaryDatabasePath();
     const sync = await runCli(
       'sync',
       '--provider',
@@ -95,7 +76,7 @@ describe('harness CLI command', () => {
   });
 
   it('persists state and blocks disabled harnesses before sync', async () => {
-    const databasePath = await createDatabasePath();
+    const databasePath = await createTemporaryDatabasePath();
     const enabled = await runCli(
       'harness',
       'ccusage',
@@ -137,7 +118,7 @@ describe('harness CLI command', () => {
   });
 
   it('rejects invalid harness names and states', async () => {
-    const databasePath = await createDatabasePath();
+    const databasePath = await createTemporaryDatabasePath();
     const invalidName = await runCli(
       'harness',
       'invalid',
