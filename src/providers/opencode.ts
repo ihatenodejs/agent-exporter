@@ -1,3 +1,4 @@
+import {existsSync} from 'fs';
 import {homedir} from 'os';
 import {join} from 'path';
 
@@ -24,6 +25,10 @@ export class OpenCodeAdapter implements MessagesProviderAdapter {
 
   async fetchMessages(): Promise<UnifiedMessage[]> {
     const unifiedMessages: UnifiedMessage[] = [];
+
+    if (!existsSync(this.messagesPath)) {
+      return unifiedMessages;
+    }
 
     try {
       const allDirs = getDirectories(this.messagesPath);

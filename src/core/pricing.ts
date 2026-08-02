@@ -24,7 +24,7 @@ const isTieredPrice = (value: unknown): value is {base: number} =>
   typeof value === 'object' &&
   value !== null &&
   'base' in value &&
-  typeof (value as {base: unknown}).base === 'number';
+  typeof value.base === 'number';
 
 function extractPrice(value: unknown): number {
   if (typeof value === 'number') {

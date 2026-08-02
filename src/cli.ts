@@ -4,6 +4,7 @@ import {readFile} from 'fs/promises';
 import {homedir} from 'os';
 import {join, resolve} from 'path';
 
+import chalk from 'chalk';
 import {Command} from 'commander';
 import React from 'react';
 
@@ -37,13 +38,16 @@ const program = new Command();
 
 const DEFAULT_DB_PATH = join(homedir(), '.agent-exporter.db');
 
-type ProviderOption =
-  | 'opencode'
-  | 'qwen'
-  | 'gemini'
-  | 'ccusage'
-  | 'codex'
-  | 'all';
+const HARNESS_NAMES = [
+  'opencode',
+  'qwen',
+  'gemini',
+  'ccusage',
+  'codex',
+] as const;
+
+type HarnessName = (typeof HARNESS_NAMES)[number];
+type ProviderOption = HarnessName | 'all';
 
 interface DatabaseOption {
   readonly db: string;
@@ -76,24 +80,12 @@ interface RangeCommandOptions extends StatsCommandOptions {
   readonly end: string;
 }
 
-type SingleProvider = Exclude<ProviderOption, 'all'>;
-
-const createProviderAdapter: Record<SingleProvider, () => ProviderAdapter> = {
+const createProviderAdapter: Record<HarnessName, () => ProviderAdapter> = {
   opencode: () => new OpenCodeAdapter(),
   qwen: () => new QwenAdapter(),
   gemini: () => new GeminiAdapter(),
   ccusage: () => new CCUsageAdapter(),
   codex: () => new CodexAdapter(),
-};
-
-const buildAdapters = (provider: ProviderOption): ProviderAdapter[] => {
-  if (provider === 'all') {
-    return (Object.keys(createProviderAdapter) as SingleProvider[]).map(
-      (providerKey) => createProviderAdapter[providerKey](),
-    );
-  }
-
-  return [createProviderAdapter[provider]()];
 };
 
 const toError = (value: unknown): Error => {
@@ -160,14 +152,67 @@ program
   .description(packageJson.description)
   .version(packageJson.version);
 
-const VALID_PROVIDERS = [
-  'opencode',
-  'qwen',
-  'gemini',
-  'ccusage',
-  'codex',
-  'all',
-];
+const VALID_PROVIDERS = [...HARNESS_NAMES, 'all'];
+
+const harnessCommand = program
+  .command('harness [name] [state]')
+  .description('Enable or disable a harness for sync')
+  .option('-d, --db <path>', 'Database path', DEFAULT_DB_PATH)
+  .addHelpText(
+    'after',
+    `
+Supported harnesses (disabled by default):
+  opencode
+  qwen
+  gemini
+  ccusage
+  codex
+
+Harness state is stored in the selected database.
+
+Examples:
+  agent-exporter harness opencode enable
+  agent-exporter harness ccusage disable --db ./usage.db`,
+  );
+
+harnessCommand.action(
+  (
+    name: string | undefined,
+    state: string | undefined,
+    options: DatabaseOption,
+    command: Command,
+  ): void => {
+    if (!name || !state) {
+      command.help();
+      return;
+    }
+
+    if (!HARNESS_NAMES.includes(name as HarnessName)) {
+      console.error(
+        `Invalid harness: ${name}. Expected one of: ${HARNESS_NAMES.join(', ')}.`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+
+    if (state !== 'enable' && state !== 'disable') {
+      console.error(
+        `Invalid harness state: ${state}. Expected "enable" or "disable".`,
+      );
+      process.exitCode = 1;
+      return;
+    }
+
+    const dbManager = new DatabaseManager(initializeDatabase(options.db));
+    try {
+      const enabled = state === 'enable';
+      dbManager.setHarnessEnabled(name, enabled);
+      console.log(`Harness "${name}" ${enabled ? 'enabled' : 'disabled'}.`);
+    } finally {
+      dbManager.close();
+    }
+  },
+);
 
 program
   .command('sync')
@@ -189,12 +234,42 @@ program
         process.exit(1);
       }
 
-      console.log(`Syncing data from ${options.provider}...`);
-
       const db = initializeDatabase(options.db);
       const dbManager = new DatabaseManager(db);
+      const requestedHarnesses =
+        options.provider === 'all' ? HARNESS_NAMES : [options.provider];
+      const disabledHarnesses = requestedHarnesses.filter(
+        (name) => !dbManager.isHarnessEnabled(name),
+      );
 
-      const adapters = buildAdapters(options.provider);
+      if (options.provider !== 'all' && disabledHarnesses.length > 0) {
+        dbManager.close();
+        for (const name of disabledHarnesses) {
+          console.error(
+            chalk.hex('#f97316')(
+              `Harness "${name}" is disabled. Enable it with: agent-exporter harness ${name} enable --db ${options.db}`,
+            ),
+          );
+        }
+        process.exitCode = 1;
+        return;
+      }
+
+      for (const name of disabledHarnesses) {
+        console.error(
+          chalk.hex('#f97316')(
+            `Harness "${name}" is disabled. Enable it with: agent-exporter harness ${name} enable --db ${options.db}`,
+          ),
+        );
+      }
+
+      console.log(`Syncing data from ${options.provider}...`);
+      const enabledHarnesses = requestedHarnesses.filter(
+        (name) => !disabledHarnesses.includes(name),
+      );
+      const adapters = enabledHarnesses.map((name) =>
+        createProviderAdapter[name](),
+      );
 
       let totalMessages = 0;
       for (const adapter of adapters) {
@@ -528,7 +603,11 @@ async function displayDashboard(
 
       isSyncing = true;
       try {
-        const adapters = buildAdapters('all');
+        const manager = dbManager;
+        if (!manager) throw new Error('Database manager not initialized');
+        const adapters = HARNESS_NAMES.filter((name) =>
+          manager.isHarnessEnabled(name),
+        ).map((name) => createProviderAdapter[name]());
 
         for (const adapter of adapters) {
           let messages: UnifiedMessage[];

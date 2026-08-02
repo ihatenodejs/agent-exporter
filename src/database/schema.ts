@@ -30,6 +30,11 @@ export function initializeDatabase(dbPath: string): Database {
       last_sync_timestamp INTEGER NOT NULL,
       last_message_id TEXT
     );
+
+    CREATE TABLE IF NOT EXISTS harness_state (
+      name TEXT PRIMARY KEY,
+      enabled INTEGER NOT NULL CHECK (enabled IN (0, 1))
+    );
   `);
 
   return db;

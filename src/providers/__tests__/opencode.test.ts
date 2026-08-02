@@ -56,6 +56,17 @@ const createOpencodeSession = (root: string): void => {
 };
 
 describe('OpenCodeAdapter', () => {
+  it('returns no messages when the OpenCode storage path is absent', async () => {
+    const tmpRoot = mkdtempSync(join(tmpdir(), 'opencode-storage-'));
+    try {
+      const adapter = new OpenCodeAdapter(join(tmpRoot, 'missing'));
+
+      expect(await adapter.fetchMessages()).toEqual([]);
+    } finally {
+      rmSync(tmpRoot, {recursive: true, force: true});
+    }
+  });
+
   it('reads assistant messages and preserves provided costs', async () => {
     const tmpRoot = mkdtempSync(join(tmpdir(), 'opencode-storage-'));
     try {
