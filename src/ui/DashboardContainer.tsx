@@ -9,7 +9,7 @@ import type {UsageSummary} from '../core/statistics';
 import type {ReactElement} from 'react';
 
 interface DashboardContainerProps {
-  readonly rangeDescription: string;
+  readonly getRangeDescription: () => string;
   readonly useRawLabels?: boolean;
   readonly fetchData: (
     isManualRefresh?: boolean,
@@ -25,7 +25,7 @@ interface DashboardContainerProps {
 }
 
 export const DashboardContainer = ({
-  rangeDescription,
+  getRangeDescription,
   useRawLabels = false,
   fetchData,
   onPeriodChange,
@@ -38,7 +38,7 @@ export const DashboardContainer = ({
     isSyncing: boolean;
   } | null>(null);
   const [currentRangeDescription, setCurrentRangeDescription] =
-    useState(rangeDescription);
+    useState(getRangeDescription);
   const [internalCurrentPeriod, setInternalCurrentPeriod] =
     useState(currentPeriod);
   const [isLoading, setIsLoading] = useState(true);
@@ -53,6 +53,7 @@ export const DashboardContainer = ({
           refreshIntervalSeconds,
         );
         setData(newData);
+        setCurrentRangeDescription(getRangeDescription());
       } finally {
         setIsLoading(false);
       }
@@ -70,17 +71,11 @@ export const DashboardContainer = ({
         }
 
         await handleRefresh();
-        const {getDateRangeForPeriod, getDateRangeDescription} =
-          await import('../core/date-utils');
-        const range = getDateRangeForPeriod(period);
-        setCurrentRangeDescription(
-          getDateRangeDescription(range.start, range.end),
-        );
       } catch (error) {
         console.error('Error during period change:', error);
       }
     },
-    [onPeriodChange, handleRefresh],
+    [onPeriodChange, handleRefresh, getRangeDescription],
   );
 
   useEffect(() => {

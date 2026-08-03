@@ -661,6 +661,10 @@ async function displayDashboard(
         throw new Error('Database manager not initialized');
       }
 
+      const range = getDateRangeForPeriod(currentPeriod);
+      currentStartDate = range.start;
+      currentEndDate = range.end;
+
       await syncFromProviders(refreshIntervalSeconds, isManualRefresh);
 
       const messages = dbManager.getMessagesByDateRange(
@@ -685,7 +689,7 @@ async function displayDashboard(
 
     const renderResult = render(
       React.createElement(DashboardContainer, {
-        rangeDescription: getCurrentRangeDescription(),
+        getRangeDescription: getCurrentRangeDescription,
         useRawLabels,
         fetchData: fetchDashboardData,
         onPeriodChange: updatePeriod,
