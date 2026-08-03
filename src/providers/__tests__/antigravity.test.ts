@@ -114,13 +114,7 @@ describe('AntigravityAdapter', () => {
         .run(1, step(timestamp(usedAt), invocation));
       database
         .prepare('INSERT INTO gen_metadata VALUES (?)')
-        .run(
-          genMetadata(
-            'gemini-3.6-flash',
-            timestamp(usedAt),
-            invocation,
-          ),
-        );
+        .run(genMetadata('gemini-3.6-flash', timestamp(usedAt), invocation));
       database.close();
 
       const messages = await new AntigravityAdapter(root).fetchMessages();

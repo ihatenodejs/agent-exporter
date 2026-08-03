@@ -99,8 +99,10 @@ export interface UsageEntry {
 2. Implement the `MessagesProviderAdapter` interface
 3. Transform source data to `UnifiedMessage[]` format
 4. Use `calculateCost()` from pricing.ts for cost calculation on each message
-5. Add the provider name to `HARNESS_NAMES` and register its adapter through `createProviderAdapter` in `src/cli.ts`
-6. Update the provider list in README.md and documentation
+5. Handle errors with `normalizeAndLogError()` from `src/core/error-utils.ts`
+6. For file- or CLI-based sources, use the shared file-system or CLI JSON helpers when applicable
+7. Add the provider name to `HARNESS_NAMES` and register its adapter through `createProviderAdapter` in `src/cli.ts`
+8. Update the provider list in README.md and documentation
 
 Example Messages Provider:
 
@@ -124,8 +126,10 @@ export class YourProviderAdapter implements MessagesProviderAdapter {
 2. Implement the `UsageProviderAdapter` interface
 3. Transform source data to `UsageEntry[]` format
 4. Ensure costs are pre-calculated or calculate them from aggregated token counts
-5. Add the provider name to `HARNESS_NAMES` and register its adapter through `createProviderAdapter` in `src/cli.ts`
-6. Update the provider list in README.md and documentation
+5. Handle errors with `normalizeAndLogError()` from `src/core/error-utils.ts`
+6. For file- or CLI-based sources, use the shared file-system or CLI JSON helpers when applicable
+7. Add the provider name to `HARNESS_NAMES` and register its adapter through `createProviderAdapter` in `src/cli.ts`
+8. Update the provider list in README.md and documentation
 
 Example Usage Provider:
 
