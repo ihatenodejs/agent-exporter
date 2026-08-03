@@ -6,7 +6,6 @@ import {Database} from 'bun:sqlite';
 import {describe, expect, it, spyOn} from 'bun:test';
 import dayjs from 'dayjs';
 
-import {calculateCost} from '../../core/pricing';
 import {AntigravityAdapter} from '../antigravity';
 
 const utf8 = new TextEncoder();
@@ -115,7 +114,13 @@ describe('AntigravityAdapter', () => {
         .run(1, step(timestamp(usedAt), invocation));
       database
         .prepare('INSERT INTO gen_metadata VALUES (?)')
-        .run(genMetadata('claude-test', timestamp(usedAt), invocation));
+        .run(
+          genMetadata(
+            'gemini-3.6-flash',
+            timestamp(usedAt),
+            invocation,
+          ),
+        );
       database.close();
 
       const messages = await new AntigravityAdapter(root).fetchMessages();
@@ -125,7 +130,7 @@ describe('AntigravityAdapter', () => {
         id: 'response-1',
         sessionId: 'conversation-123',
         provider: 'antigravity',
-        model: 'claude-test',
+        model: 'gemini-3.6-flash',
         inputTokens: 10,
         outputTokens: 20,
         reasoningTokens: 0,
@@ -134,9 +139,7 @@ describe('AntigravityAdapter', () => {
         timestamp: expectedTimestamp,
         date: dayjs(expectedTimestamp).format('YYYY-MM-DD'),
       });
-      expect(messages[0]?.cost).toBeCloseTo(
-        calculateCost('claude-test', 10, 20, 3, 5, 'antigravity'),
-      );
+      expect(messages[0]?.cost).toBeCloseTo(0.00016575, 10);
       expect(warn).not.toHaveBeenCalled();
     } finally {
       rmSync(root, {recursive: true, force: true});
@@ -167,7 +170,7 @@ describe('AntigravityAdapter', () => {
       ).toBe(18);
       expect(
         messages.find((message) => message.id === 'split')?.reasoningTokens,
-      ).toBe(0);
+      ).toBe(7);
       expect(
         messages.find((message) => message.id === 'retry')?.outputTokens,
       ).toBe(3);
@@ -215,9 +218,21 @@ describe('AntigravityAdapter', () => {
     }
   });
 
-  it('skips malformed, zero-token, and untimestamped rows without losing another database', async () => {
+  it('returns no messages when the conversations directory is missing', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'antigravity-adapter-'));
+    try {
+      rmSync(root, {recursive: true, force: true});
+
+      expect(await new AntigravityAdapter(root).fetchMessages()).toEqual([]);
+    } finally {
+      rmSync(root, {recursive: true, force: true});
+    }
+  });
+
+  it('skips malformed, unreadable, zero-token, and untimestamped rows without losing another database', async () => {
     const root = mkdtempSync(join(tmpdir(), 'antigravity-adapter-'));
     const warn = spyOn(console, 'warn').mockImplementation(() => undefined);
+    const error = spyOn(console, 'error').mockImplementation(() => undefined);
     try {
       const invalid = createDatabase(root, 'invalid.db');
       invalid
@@ -230,6 +245,7 @@ describe('AntigravityAdapter', () => {
         .prepare('INSERT INTO steps VALUES (?, ?)')
         .run(3, step(undefined, usage({input: 1, messageId: 'untimestamped'})));
       invalid.close();
+      new Database(join(root, 'unreadable.db')).close();
       const valid = createDatabase(root, 'valid.db');
       valid
         .prepare('INSERT INTO steps VALUES (?, ?)')
@@ -245,7 +261,12 @@ describe('AntigravityAdapter', () => {
       expect(warn).toHaveBeenCalledWith(
         `Failed to parse Antigravity metadata in ${join(root, 'invalid.db')}`,
       );
+      expect(error).toHaveBeenCalledWith(
+        `Failed to import Antigravity database ${join(root, 'unreadable.db')}:`,
+        expect.any(String),
+      );
     } finally {
+      error.mockRestore();
       warn.mockRestore();
       rmSync(root, {recursive: true, force: true});
     }

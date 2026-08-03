@@ -1,4 +1,4 @@
-import {readdirSync} from 'fs';
+import {existsSync, readdirSync} from 'fs';
 import {homedir} from 'os';
 import {join, parse} from 'path';
 
@@ -21,6 +21,7 @@ interface Usage {
   readonly modelId: string;
   readonly inputTokens: number;
   readonly outputTokens: number;
+  readonly reasoningTokens: number;
   readonly cacheCreationTokens: number;
   readonly cacheReadTokens: number;
   readonly identity?: string;
@@ -157,6 +158,7 @@ function parseUsage(data: Uint8Array): Usage | undefined {
     inputTokens: numberValue(fields.find((field) => field.number === 2)),
     outputTokens:
       totalOutput === 0 ? thinkingOutput + responseOutput : totalOutput,
+    reasoningTokens: thinkingOutput,
     cacheCreationTokens: numberValue(
       fields.find((field) => field.number === 4),
     ),
@@ -271,6 +273,10 @@ export class AntigravityAdapter implements MessagesProviderAdapter {
   }
 
   fetchMessages(): Promise<UnifiedMessage[]> {
+    if (!existsSync(this.conversationsPath)) {
+      return Promise.resolve([]);
+    }
+
     let databaseNames: string[];
     try {
       databaseNames = readdirSync(this.conversationsPath, {withFileTypes: true})
@@ -349,7 +355,7 @@ export class AntigravityAdapter implements MessagesProviderAdapter {
             model,
             inputTokens: usage.inputTokens,
             outputTokens: usage.outputTokens,
-            reasoningTokens: 0,
+            reasoningTokens: usage.reasoningTokens,
             cacheCreationTokens: usage.cacheCreationTokens,
             cacheReadTokens: usage.cacheReadTokens,
             cost: calculateCost(
@@ -365,8 +371,8 @@ export class AntigravityAdapter implements MessagesProviderAdapter {
           });
         }
       } catch (error: unknown) {
-        console.warn(
-          `Failed to import Antigravity database ${databasePath}:`,
+        normalizeAndLogError(
+          `to import Antigravity database ${databasePath}`,
           error,
         );
       } finally {

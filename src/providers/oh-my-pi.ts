@@ -1,4 +1,3 @@
-import {existsSync} from 'fs';
 import {homedir, platform} from 'os';
 import {join} from 'path';
 
@@ -6,7 +5,7 @@ import dayjs from 'dayjs';
 import {z} from 'zod';
 
 import {normalizeAndLogError} from '../core/error-utils';
-import {getDirectories, getFiles} from '../core/fs-utils';
+import {getDirectories, getFiles, pathExists} from '../core/fs-utils';
 import {calculateCost, calculateOhMyPiCatalogCost} from '../core/pricing';
 
 import type {MessagesProviderAdapter, UnifiedMessage} from '../core/types';
@@ -41,24 +40,25 @@ const isFiniteNumber = (value: number): boolean => Number.isFinite(value);
 function getSessionsRoot(): string {
   const profileSelector = process.env.OMP_PROFILE ?? process.env.PI_PROFILE;
   const profile = profileSelector?.trim();
-  const isDefaultProfile = !profile || profile === 'default';
   let configDirectory = '.omp';
   const specifiedConfigDirectory = process.env.PI_CONFIG_DIR;
   if (specifiedConfigDirectory) {
     configDirectory = specifiedConfigDirectory;
   }
   const configRoot = join(homedir(), configDirectory);
-  const agentDirectory = isDefaultProfile
-    ? (process.env.PI_CODING_AGENT_DIR ?? join(configRoot, 'agent'))
-    : join(configRoot, 'profiles', profile, 'agent');
+  const agentDirectory =
+    !profile || profile === 'default'
+      ? (process.env.PI_CODING_AGENT_DIR ?? join(configRoot, 'agent'))
+      : join(configRoot, 'profiles', profile, 'agent');
 
   const xdgDataHome = process.env.XDG_DATA_HOME;
   if (xdgDataHome && (platform() === 'darwin' || platform() === 'linux')) {
-    const dataRoot = isDefaultProfile
-      ? join(xdgDataHome, 'omp')
-      : join(xdgDataHome, 'omp', 'profiles', profile);
+    const dataRoot =
+      !profile || profile === 'default'
+        ? join(xdgDataHome, 'omp')
+        : join(xdgDataHome, 'omp', 'profiles', profile);
 
-    if (existsSync(dataRoot)) {
+    if (pathExists(dataRoot)) {
       return join(dataRoot, 'sessions');
     }
   }
@@ -78,7 +78,7 @@ export class OhMyPiAdapter implements MessagesProviderAdapter {
   async fetchMessages(): Promise<UnifiedMessage[]> {
     const unifiedMessages: UnifiedMessage[] = [];
 
-    if (!existsSync(this.sessionsRoot)) {
+    if (!pathExists(this.sessionsRoot)) {
       return unifiedMessages;
     }
 

@@ -63,7 +63,7 @@ This will:
 
 Options:
 
-- `-p, --provider <provider>` - Provider to sync (opencode, ccusage, codex, antigravity, qwen, or all) (default: all)
+- `-p, --provider <provider>` - Provider to sync (opencode, ccusage, codex, antigravity, oh-my-pi, qwen, or all) (default: all)
 - `-d, --db <path>` - Custom database path
 
 ### View Statistics

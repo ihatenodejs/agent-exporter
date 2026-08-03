@@ -79,6 +79,15 @@ const getBundledModel = (
   model: string,
 ): BundledModel | undefined => getBundledModels()[provider]?.[model];
 
+const hasCatalogCost = (
+  bundledModel: BundledModel | undefined,
+): bundledModel is BundledModel =>
+  bundledModel !== undefined &&
+  (bundledModel.cost.input !== 0 ||
+    bundledModel.cost.output !== 0 ||
+    bundledModel.cost.cacheRead !== 0 ||
+    bundledModel.cost.cacheWrite !== 0);
+
 export function calculateOhMyPiCatalogCost(
   provider: string,
   model: string,
@@ -89,24 +98,11 @@ export function calculateOhMyPiCatalogCost(
 ): number | null {
   let bundledModel = getBundledModel(provider, model);
 
-  if (
-    (!bundledModel ||
-      (bundledModel.cost.input === 0 &&
-        bundledModel.cost.output === 0 &&
-        bundledModel.cost.cacheRead === 0 &&
-        bundledModel.cost.cacheWrite === 0)) &&
-    provider === 'openai-codex'
-  ) {
+  if (!hasCatalogCost(bundledModel) && provider === 'openai-codex') {
     bundledModel = getBundledModel('openai', model);
   }
 
-  if (
-    !bundledModel ||
-    (bundledModel.cost.input === 0 &&
-      bundledModel.cost.output === 0 &&
-      bundledModel.cost.cacheRead === 0 &&
-      bundledModel.cost.cacheWrite === 0)
-  ) {
+  if (!hasCatalogCost(bundledModel)) {
     return null;
   }
 

@@ -1,6 +1,9 @@
 import {describe, expect, it} from 'bun:test';
 
-import {createTemporaryDatabasePath} from '../../__tests__/database-test-utils';
+import {
+  createTemporaryDatabasePath,
+  removeTemporaryDatabasePath,
+} from '../../__tests__/database-test-utils';
 import {DatabaseManager} from '../manager';
 import {initializeDatabase} from '../schema';
 
@@ -10,18 +13,25 @@ describe('DatabaseManager harness state', () => {
     const db = initializeDatabase(databasePath);
     const manager = new DatabaseManager(db);
 
-    expect(manager.isHarnessEnabled('ccusage')).toBe(false);
+    try {
+      expect(manager.isHarnessEnabled('ccusage')).toBe(false);
 
-    manager.setHarnessEnabled('ccusage', true);
-    expect(manager.isHarnessEnabled('ccusage')).toBe(true);
+      manager.setHarnessEnabled('ccusage', true);
+      db.close();
 
-    manager.setHarnessEnabled('ccusage', false);
-    expect(manager.isHarnessEnabled('ccusage')).toBe(false);
-    db.close();
+      const enabledDatabase = initializeDatabase(databasePath);
+      const enabledManager = new DatabaseManager(enabledDatabase);
+      expect(enabledManager.isHarnessEnabled('ccusage')).toBe(true);
 
-    const reopenedDatabase = initializeDatabase(databasePath);
-    const reopenedManager = new DatabaseManager(reopenedDatabase);
-    expect(reopenedManager.isHarnessEnabled('ccusage')).toBe(false);
-    reopenedDatabase.close();
+      enabledManager.setHarnessEnabled('ccusage', false);
+      enabledDatabase.close();
+
+      const disabledDatabase = initializeDatabase(databasePath);
+      const disabledManager = new DatabaseManager(disabledDatabase);
+      expect(disabledManager.isHarnessEnabled('ccusage')).toBe(false);
+      disabledDatabase.close();
+    } finally {
+      await removeTemporaryDatabasePath(databasePath);
+    }
   });
 });

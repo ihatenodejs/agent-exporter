@@ -24,6 +24,7 @@ agent-exporter/
 │   │   ├── ccusage.ts             # Claude Code adapter
 │   │   ├── codex.ts               # Codex adapter
 │   │   ├── antigravity.ts         # Antigravity adapter
+│   │   ├── oh-my-pi.ts            # Oh My Pi adapter
 │   │   └── qwen.ts                # Qwen adapter
 │   ├── exporters/                 # Export format handlers
 │   │   ├── ccusage.ts             # CCUsage exporter

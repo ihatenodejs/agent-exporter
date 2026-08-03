@@ -32,6 +32,12 @@
 - Imports invocation-level input, output, cache-read, and cache-write token data
 - Estimates API-equivalent cost when model pricing is available
 
+### Oh My Pi Provider
+
+- Reads local Oh My Pi session usage data
+- Includes input, output, reasoning, cache-read, and cache-write token data
+- Preserves recorded costs when available and otherwise uses the bundled catalog
+
 ### Qwen Provider
 
 - Fetches usage data from Alibaba's Qwen models
@@ -93,9 +99,8 @@ export interface UsageEntry {
 2. Implement the `MessagesProviderAdapter` interface
 3. Transform source data to `UnifiedMessage[]` format
 4. Use `calculateCost()` from pricing.ts for cost calculation on each message
-5. Add the provider to the VALID_PROVIDERS list in `src/cli.ts`
-6. Add the provider to the createProviderAdapter mapping in `src/cli.ts`
-7. Update the provider list in README.md and documentation
+5. Add the provider name to `HARNESS_NAMES` and register its adapter through `createProviderAdapter` in `src/cli.ts`
+6. Update the provider list in README.md and documentation
 
 Example Messages Provider:
 
@@ -119,9 +124,8 @@ export class YourProviderAdapter implements MessagesProviderAdapter {
 2. Implement the `UsageProviderAdapter` interface
 3. Transform source data to `UsageEntry[]` format
 4. Ensure costs are pre-calculated or calculate them from aggregated token counts
-5. Add the provider to the VALID_PROVIDERS list in `src/cli.ts`
-6. Add the provider to the createProviderAdapter mapping in `src/cli.ts`
-7. Update the provider list in README.md and documentation
+5. Add the provider name to `HARNESS_NAMES` and register its adapter through `createProviderAdapter` in `src/cli.ts`
+6. Update the provider list in README.md and documentation
 
 Example Usage Provider:
 
@@ -143,30 +147,31 @@ export class YourProviderAdapter implements UsageProviderAdapter {
 
 After implementing your adapter, update the CLI integration in `src/cli.ts`:
 
-1. **Add to VALID_PROVIDERS list** (around line 134):
+1. **Add to `HARNESS_NAMES`** (around line 42). New provider names belong here:
 
 ```typescript
-const VALID_PROVIDERS = [
+const HARNESS_NAMES = [
   'opencode',
   'qwen',
   'antigravity',
   'ccusage',
   'codex',
+  'oh-my-pi',
   'your-provider', // Add your provider here
-  'all',
-];
+] as const;
 ```
 
-1. **Add to createProviderAdapter mapping** (around line 82):
+2. **Register the adapter through `createProviderAdapter`** (around line 85):
 
 ```typescript
-const createProviderAdapter: Record<SingleProvider, () => ProviderAdapter> = {
+const createProviderAdapter: Record<HarnessName, () => ProviderAdapter> = {
   opencode: () => new OpenCodeAdapter(),
   qwen: () => new QwenAdapter(),
   antigravity: () => new AntigravityAdapter(),
   ccusage: () => new CCUsageAdapter(),
   codex: () => new CodexAdapter(),
-  'your-provider': () => new YourProviderAdapter(), // Add your adapter here
+  'oh-my-pi': () => new OhMyPiAdapter(),
+  'your-provider': () => new YourProviderAdapter(), // Register your adapter here
 };
 ```
 

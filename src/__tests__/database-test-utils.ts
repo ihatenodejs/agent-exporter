@@ -1,21 +1,14 @@
 import {mkdtemp, rm} from 'fs/promises';
 import {tmpdir} from 'os';
-import {join} from 'path';
-
-import {afterEach} from 'bun:test';
-
-const temporaryDirectories: string[] = [];
+import {dirname, join} from 'path';
 
 export const createTemporaryDatabasePath = async (): Promise<string> => {
   const directory = await mkdtemp(join(tmpdir(), 'agent-exporter-'));
-  temporaryDirectories.push(directory);
   return join(directory, 'harness.db');
 };
 
-afterEach(async () => {
-  await Promise.all(
-    temporaryDirectories
-      .splice(0)
-      .map((directory) => rm(directory, {force: true, recursive: true})),
-  );
-});
+export const removeTemporaryDatabasePath = async (
+  databasePath: string,
+): Promise<void> => {
+  await rm(dirname(databasePath), {force: true, recursive: true});
+};
