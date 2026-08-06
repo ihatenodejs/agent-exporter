@@ -8,6 +8,8 @@
 export interface FallbackModelPrice {
   /** Model identifier */
   model: string;
+  /** Pattern matching model identifiers */
+  modelPattern?: RegExp;
   /** Provider identifier (optional) */
   provider?: string;
   /** Input tokens cost per 1M tokens (USD) */
@@ -48,6 +50,21 @@ export const FALLBACK_PRICES: FallbackModelPrice[] = [
     cacheReadPer1M: 0.03,
   },
 
+  // MiMo Models (Xiaomi)
+  {
+    model: 'mimo-v2.5-pro',
+    modelPattern: /^mimo-v2\.5-pro.*$/i,
+    inputPer1M: 0.435,
+    outputPer1M: 0.87,
+    cacheReadPer1M: 0.0036,
+  },
+  {
+    model: 'mimo-v2.5',
+    modelPattern: /^mimo-v2\.5(?!-pro).*$/i,
+    inputPer1M: 0.14,
+    outputPer1M: 0.28,
+    cacheReadPer1M: 0.0028,
+  },
   // Qwen Models (Alibaba Cloud)
   {
     model: 'qwen/qwen3-coder-30b',
@@ -104,6 +121,11 @@ export function findFallbackPrice(
 
   const modelMatch = FALLBACK_PRICES.find((p) => p.model === modelName);
   if (modelMatch) return modelMatch;
+
+  const patternMatch = FALLBACK_PRICES.find((p) =>
+    p.modelPattern?.test(modelName),
+  );
+  if (patternMatch) return patternMatch;
 
   const lowerModelName = modelName.toLowerCase();
   const partialMatch = FALLBACK_PRICES.find(

@@ -2,7 +2,7 @@ import {mkdtempSync, mkdirSync, rmSync, writeFileSync} from 'fs';
 import {tmpdir} from 'os';
 import {join} from 'path';
 
-import {describe, expect, it} from 'bun:test';
+import {describe, expect, it, vi} from 'bun:test';
 import dayjs from 'dayjs';
 
 import {OpenCodeAdapter} from '../opencode';
@@ -56,6 +56,43 @@ const createOpencodeSession = (root: string): void => {
 };
 
 describe('OpenCodeAdapter', () => {
+  it('returns no messages when the OpenCode storage path is absent', async () => {
+    const tmpRoot = mkdtempSync(join(tmpdir(), 'opencode-storage-'));
+    try {
+      const adapter = new OpenCodeAdapter(join(tmpRoot, 'missing'));
+
+      expect(await adapter.fetchMessages()).toEqual([]);
+    } finally {
+      rmSync(tmpRoot, {recursive: true, force: true});
+    }
+  });
+
+  it('normalizes filesystem failures for an existing non-directory path', async () => {
+    const tmpRoot = mkdtempSync(join(tmpdir(), 'opencode-storage-'));
+    const errorSpy = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => undefined);
+    try {
+      const messagesPath = join(tmpRoot, 'messages.json');
+      writeFileSync(messagesPath, '{}', 'utf8');
+      const adapter = new OpenCodeAdapter(messagesPath);
+
+      try {
+        await adapter.fetchMessages();
+        throw new Error('Expected fetchMessages to reject');
+      } catch (error: unknown) {
+        expect((error as Error).message).toContain('ENOTDIR');
+      }
+      expect(errorSpy).toHaveBeenCalledWith(
+        `Failed to read messages path ${messagesPath}:`,
+        expect.stringContaining('ENOTDIR'),
+      );
+    } finally {
+      errorSpy.mockRestore();
+      rmSync(tmpRoot, {recursive: true, force: true});
+    }
+  });
+
   it('reads assistant messages and preserves provided costs', async () => {
     const tmpRoot = mkdtempSync(join(tmpdir(), 'opencode-storage-'));
     try {

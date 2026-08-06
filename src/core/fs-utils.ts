@@ -2,7 +2,7 @@
  * File system utilities for common directory and file operations
  */
 
-import {readdirSync} from 'fs';
+import {readdirSync, statSync} from 'fs';
 
 /**
  * Gets all directories in a given path
@@ -12,6 +12,23 @@ import {readdirSync} from 'fs';
 export function getDirectories(path: string): string[] {
   const entries = readdirSync(path, {withFileTypes: true});
   return entries.filter((e) => e.isDirectory()).map((e) => e.name);
+}
+
+/**
+ * Determines whether a path exists without suppressing filesystem failures.
+ * @returns False only when the path is missing
+ */
+export function pathExists(path: string): boolean {
+  try {
+    statSync(path);
+    return true;
+  } catch (error: unknown) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return false;
+    }
+
+    throw error;
+  }
 }
 
 /**

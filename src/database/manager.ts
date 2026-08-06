@@ -140,6 +140,26 @@ export class DatabaseManager {
     stmt.run(provider, timestamp, lastMessageId);
   }
 
+  isHarnessEnabled(name: string): boolean {
+    const stmt = this.db.prepare(`
+      SELECT enabled
+      FROM harness_state
+      WHERE name = ?
+    `);
+
+    const row = stmt.get(name) as {enabled: number} | null;
+    return row?.enabled === 1;
+  }
+
+  setHarnessEnabled(name: string, enabled: boolean): void {
+    const stmt = this.db.prepare(`
+      INSERT OR REPLACE INTO harness_state (name, enabled)
+      VALUES (?, ?)
+    `);
+
+    stmt.run(name, enabled ? 1 : 0);
+  }
+
   /**
    * Recalculate costs for all messages in the database
    * Useful when pricing data has been updated

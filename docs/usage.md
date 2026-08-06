@@ -13,8 +13,8 @@ agent-exporter sync
 # Sync from CCUsage (Claude Code)
 agent-exporter sync --provider ccusage
 
-# Sync from Gemini
-agent-exporter sync --provider gemini
+# Sync from Antigravity
+agent-exporter sync --provider antigravity
 
 # Sync from Qwen
 agent-exporter sync --provider qwen
@@ -63,7 +63,7 @@ This will:
 
 Options:
 
-- `-p, --provider <provider>` - Provider to sync (opencode, ccusage, codex, gemini, qwen, or all) (default: all)
+- `-p, --provider <provider>` - Provider to sync (opencode, ccusage, codex, antigravity, oh-my-pi, qwen, or all) (default: all)
 - `-d, --db <path>` - Custom database path
 
 ### View Statistics

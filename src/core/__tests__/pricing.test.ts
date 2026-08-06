@@ -1,8 +1,9 @@
-import {afterEach, describe, expect, it, mock} from 'bun:test';
+import {afterAll, afterEach, describe, expect, it, mock} from 'bun:test';
 
 import {
   calculateCost,
   calculateDetailedCost,
+  calculateOhMyPiCatalogCost,
   getModelPricing,
 } from '../pricing';
 
@@ -24,12 +25,49 @@ type CalcPriceResult = {
 
 const calcPriceMock = mock<(...args: unknown[]) => CalcPriceResult>(() => null);
 
+interface CatalogModel {
+  cost: {
+    input: number;
+    output: number;
+    cacheRead: number;
+    cacheWrite: number;
+  };
+}
+
+type CatalogModels = Record<string, Record<string, CatalogModel>>;
+
+const {default: actualCatalogModels} =
+  await import('@oh-my-pi/pi-catalog/models.json');
+const catalogOverrides = new Map<string, Record<string, CatalogModel>>();
+const catalogModels = new Proxy<CatalogModels>(actualCatalogModels, {
+  get(target, provider: string) {
+    return catalogOverrides.get(provider) ?? target[provider];
+  },
+});
+
+const setCatalogModel = (
+  provider: string,
+  model: string,
+  cost: CatalogModel['cost'],
+): void => {
+  catalogOverrides.set(provider, {[model]: {cost}});
+};
+
 await mock.module('@pydantic/genai-prices', () => ({
   calcPrice: calcPriceMock,
 }));
 
+await mock.module('@oh-my-pi/pi-catalog/models.json', () => ({
+  default: catalogModels,
+}));
+
 afterEach(() => {
   calcPriceMock.mockReset();
+  catalogOverrides.clear();
+});
+
+afterAll(() => {
+  mock.restore();
 });
 
 describe('calculateCost', () => {
@@ -59,12 +97,73 @@ describe('calculateCost', () => {
     expect(total).toBeCloseTo(2.25, 5);
   });
 
+  it('searches genai pricing without the Oh My Pi wrapper provider', () => {
+    calcPriceMock.mockReturnValue({
+      total_price: 3.75,
+      provider: {name: 'xAI'},
+      model: {name: 'Grok 4.3', prices: {}},
+    });
+
+    const total = calculateCost(
+      'grok-4.3',
+      1_000_000,
+      1_000_000,
+      0,
+      0,
+      'oh-my-pi',
+    );
+
+    expect(calcPriceMock).toHaveBeenCalledWith(
+      {input_tokens: 1_000_000, output_tokens: 1_000_000},
+      'grok-4.3',
+      undefined,
+    );
+    expect(total).toBe(3.75);
+  });
+
   it('falls back to internal pricing when genai data is missing', () => {
     calcPriceMock.mockReturnValue(null as CalcPriceResult);
 
     const total = calculateCost('glm-4.5', 1_000_000, 1_000_000, 0, 0);
 
     expect(total).toBeCloseTo(1.9, 5);
+  });
+
+  it('matches MiMo V2.5 variants with their cache-read rates', () => {
+    calcPriceMock.mockReturnValue(null as CalcPriceResult);
+
+    expect(
+      calculateCost('mimo-v2.5-20260101', 1_000_000, 1_000_000, 0, 1_000_000),
+    ).toBeCloseTo(0.4228, 5);
+    expect(
+      calculateCost(
+        'MiMo-V2.5-Pro-20260101',
+        1_000_000,
+        1_000_000,
+        0,
+        1_000_000,
+      ),
+    ).toBeCloseTo(1.3086, 5);
+  });
+
+  it('uses the Antigravity catalog price for imported model usage', () => {
+    setCatalogModel('google-antigravity', 'gemini-3.6-flash', {
+      input: 1.5,
+      output: 7.5,
+      cacheRead: 0.15,
+      cacheWrite: 0,
+    });
+
+    expect(
+      calculateCost(
+        'gemini-3.6-flash',
+        69_834,
+        27_974,
+        0,
+        248_611,
+        'antigravity',
+      ),
+    ).toBeCloseTo(0.35184765, 8);
   });
 
   it('returns zero cost when neither genai nor fallback prices exist', () => {
@@ -199,5 +298,75 @@ describe('getModelPricing', () => {
     const pricing = getModelPricing('unknown-model');
 
     expect(pricing).toBeNull();
+  });
+});
+
+describe('calculateOhMyPiCatalogCost', () => {
+  it('calculates all four persisted token buckets', () => {
+    setCatalogModel('google-antigravity', 'gemini-3.6-flash', {
+      input: 1.5,
+      output: 7.5,
+      cacheRead: 0.15,
+      cacheWrite: 2,
+    });
+
+    const cost = calculateOhMyPiCatalogCost(
+      'google-antigravity',
+      'gemini-3.6-flash',
+      1_000_000,
+      1_000_000,
+      1_000_000,
+      1_000_000,
+    );
+
+    expect(cost).toBeCloseTo(11.15, 5);
+  });
+
+  it('returns null for an all-zero catalog entry', () => {
+    setCatalogModel('google-antigravity', 'free-model', {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    });
+
+    expect(
+      calculateOhMyPiCatalogCost(
+        'google-antigravity',
+        'free-model',
+        1,
+        1,
+        1,
+        1,
+      ),
+    ).toBeNull();
+  });
+
+  it('falls back from OpenAI Codex to OpenAI', () => {
+    setCatalogModel('openai-codex', 'gpt-5', {
+      input: 0,
+      output: 0,
+      cacheRead: 0,
+      cacheWrite: 0,
+    });
+    setCatalogModel('openai', 'gpt-5', {
+      input: 1,
+      output: 2,
+      cacheRead: 3,
+      cacheWrite: 4,
+    });
+
+    const cost = calculateOhMyPiCatalogCost(
+      'openai-codex',
+      'gpt-5',
+      1_000_000,
+      1_000_000,
+      1_000_000,
+      1_000_000,
+    );
+
+    expect(catalogOverrides.get('openai-codex')).toBeDefined();
+    expect(catalogOverrides.get('openai')).toBeDefined();
+    expect(cost).toBe(10);
   });
 });
