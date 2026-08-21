@@ -265,4 +265,74 @@ describe('AntigravityAdapter', () => {
       rmSync(root, {recursive: true, force: true});
     }
   });
+  it('silently skips a database removed after discovery and syncs others', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'antigravity-adapter-'));
+    const error = spyOn(console, 'error').mockImplementation(() => undefined);
+    const vanishedPath = join(root, 'vanished.db');
+    try {
+      new Database(vanishedPath).close();
+      const valid = createDatabase(root, 'valid.db');
+      valid
+        .prepare('INSERT INTO steps VALUES (?, ?)')
+        .run(
+          1,
+          step(timestamp(1_710_000_000), usage({input: 1, messageId: 'valid'})),
+        );
+      valid.close();
+
+      class DeletingAdapter extends AntigravityAdapter {
+        protected override openDatabase(databasePath: string): Database {
+          if (databasePath === vanishedPath) {
+            rmSync(databasePath);
+          }
+          return super.openDatabase(databasePath);
+        }
+      }
+
+      const messages = await new DeletingAdapter(root).fetchMessages();
+
+      expect(messages).toHaveLength(1);
+      expect(messages[0]?.id).toBe('valid');
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+      rmSync(root, {recursive: true, force: true});
+    }
+  });
+  it('silently skips an existing database SQLite cannot open', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'antigravity-adapter-'));
+    const error = spyOn(console, 'error').mockImplementation(() => undefined);
+    const unavailablePath = join(root, 'unavailable.db');
+    try {
+      createDatabase(root, 'unavailable.db').close();
+      const valid = createDatabase(root, 'valid.db');
+      valid
+        .prepare('INSERT INTO steps VALUES (?, ?)')
+        .run(
+          1,
+          step(timestamp(1_710_000_000), usage({input: 1, messageId: 'valid'})),
+        );
+      valid.close();
+
+      class CannotOpenAdapter extends AntigravityAdapter {
+        protected override openDatabase(databasePath: string): Database {
+          if (databasePath === unavailablePath) {
+            throw Object.assign(new Error('unable to open database file'), {
+              code: 'SQLITE_CANTOPEN',
+            });
+          }
+          return super.openDatabase(databasePath);
+        }
+      }
+
+      const messages = await new CannotOpenAdapter(root).fetchMessages();
+
+      expect(messages).toHaveLength(1);
+      expect(messages[0]?.id).toBe('valid');
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      error.mockRestore();
+      rmSync(root, {recursive: true, force: true});
+    }
+  });
 });

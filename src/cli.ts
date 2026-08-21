@@ -17,6 +17,7 @@ import {
   validateAndResolveDateRange,
   type TimePeriod,
 } from './core/date-utils';
+import {isHarnessInstalled} from './core/harness-availability';
 import {computeUsageSummary, type UsageSummary} from './core/statistics';
 import {DatabaseManager} from './database/manager';
 import {initializeDatabase} from './database/schema';
@@ -272,7 +273,9 @@ program
       }
 
       for (const name of disabledHarnesses) {
-        logDisabledHarnessWarning(name, options.db);
+        if (isHarnessInstalled(name)) {
+          logDisabledHarnessWarning(name, options.db);
+        }
       }
 
       console.log(`Syncing data from ${options.provider}...`);

@@ -24,6 +24,23 @@ const runCli = async (
   return {exitCode, stderr, stdout};
 };
 
+const runCliWithoutHarnesses = async (
+  ...arguments_: string[]
+): Promise<{exitCode: number; stderr: string; stdout: string}> => {
+  const child = Bun.spawn([process.execPath, 'src/cli.ts', ...arguments_], {
+    cwd: process.cwd(),
+    env: {...process.env, PATH: ''},
+    stderr: 'pipe',
+    stdout: 'pipe',
+  });
+  const [stdout, stderr, exitCode] = await Promise.all([
+    new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
+    child.exited,
+  ]);
+  return {exitCode, stderr, stdout};
+};
+
 describe('harness CLI command', () => {
   it('shows harness guidance when invoked without arguments or with help', async () => {
     const bare = await runCli('harness');
@@ -49,7 +66,7 @@ describe('harness CLI command', () => {
   it('skips disabled harnesses when syncing all providers', async () => {
     const databasePath = await createTemporaryDatabasePath();
     try {
-      const sync = await runCli(
+      const sync = await runCliWithoutHarnesses(
         'sync',
         '--provider',
         'all',
@@ -68,10 +85,8 @@ describe('harness CLI command', () => {
         'oh-my-pi',
       ]) {
         expect(sync.stdout).not.toContain(`Syncing ${name}...`);
-        expect(sync.stderr).toContain(
-          `Harness "${name}" is disabled. Enable it with: agent-exporter harness ${name} enable --db ${databasePath}`,
-        );
       }
+      expect(sync.stderr).toBe('');
     } finally {
       await removeTemporaryDatabasePath(databasePath);
     }
@@ -106,7 +121,7 @@ describe('harness CLI command', () => {
       expect(disabled.exitCode).toBe(0);
       expect(disabled.stdout.trim()).toBe('Harness "ccusage" disabled.');
 
-      const sync = await runCli(
+      const sync = await runCliWithoutHarnesses(
         'sync',
         '--provider',
         'ccusage',
