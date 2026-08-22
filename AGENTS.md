@@ -2,6 +2,18 @@ Agent Exporter is a CLI tool for tracking and analyzing LLM usage costs across m
 
 ## Development Commands
 
+<!-- BEGIN CRITICAL VERIFICATION INSTRUCTION -->
+
+**Required post-change verification:**
+
+After making any repository changes, agents MUST run:
+
+```bash
+bun run check
+```
+
+<!-- END CRITICAL VERIFICATION INSTRUCTION -->
+
 **Run in development:**
 
 ```bash
