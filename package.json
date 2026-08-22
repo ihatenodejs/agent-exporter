@@ -23,6 +23,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
+    "check": "pre-commit run --all-files",
     "prepublishOnly": "bun run build"
   },
   "keywords": [

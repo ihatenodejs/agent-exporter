@@ -22,6 +22,14 @@ bun run build
 bun run typecheck
 ```
 
+**Required post-change verification:**
+
+After making any repository changes, agents MUST run:
+
+```bash
+bun run check
+```
+
 **Link for local testing:**
 
 ```bash

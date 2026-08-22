@@ -35,7 +35,9 @@ describe('harness availability', () => {
   });
 
   it('requires bunx for the Codex harness', () => {
-    expect(isHarnessInstalled('codex', executableFinder('ccusage'))).toBe(false);
+    expect(isHarnessInstalled('codex', executableFinder('ccusage'))).toBe(
+      false,
+    );
     expect(isHarnessInstalled('codex', executableFinder('bunx'))).toBe(true);
     expect(isHarnessInstalled('codex', executableFinder())).toBe(false);
   });
