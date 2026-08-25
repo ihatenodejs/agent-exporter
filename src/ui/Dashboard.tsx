@@ -344,7 +344,7 @@ export const Dashboard = ({
           )}
           {'   '}
           {canNavigatePrevious && canNavigateNext
-            ? `${chalk.bold('<-/->')} Next/Prev period`
+            ? `${chalk.bold('<-/->')} Prev/Next period`
             : canNavigatePrevious
               ? `${chalk.bold('<-')} Prev period`
               : canNavigateNext

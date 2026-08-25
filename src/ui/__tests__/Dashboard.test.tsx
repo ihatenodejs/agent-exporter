@@ -166,6 +166,26 @@ describe('Dashboard period controls', () => {
 
     expect(Bun.stripANSI(stdout.output)).toContain('<- Prev period');
   });
+
+  it('labels combined navigation in keyboard order', async () => {
+    const stdout = new CaptureStream(119, 42);
+    const instance = render(
+      dashboard(createUsageSummary(), false, true, true),
+      {
+        stdout: stdout as unknown as NodeJS.WriteStream,
+        stdin: new InputStream() as unknown as NodeJS.ReadStream,
+        interactive: false,
+        patchConsole: false,
+      },
+    );
+
+    await instance.waitUntilRenderFlush();
+    instance.unmount();
+    await instance.waitUntilExit();
+    instance.cleanup();
+
+    expect(Bun.stripANSI(stdout.output)).toContain('<-/-> Prev/Next period');
+  });
 });
 
 describe('Dashboard charts', () => {
