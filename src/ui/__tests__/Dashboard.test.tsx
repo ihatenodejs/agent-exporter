@@ -242,8 +242,10 @@ describe('Dashboard charts', () => {
       stdin: new InputStream() as unknown as NodeJS.ReadStream,
       interactive: false,
       patchConsole: false,
+      debug: true,
     });
     await instance.waitUntilRenderFlush();
+    const firstOutput = stdout.output;
 
     instance.rerender(dashboard(oneProvider, true));
     await instance.waitUntilRenderFlush();
@@ -251,7 +253,7 @@ describe('Dashboard charts', () => {
     await instance.waitUntilExit();
     instance.cleanup();
 
-    const output = Bun.stripANSI(stdout.output);
+    const output = Bun.stripANSI(stdout.output.slice(firstOutput.length));
     expect(findChartTitleLine(output, 'Providers')).toBeUndefined();
     expect(findChartTitleLine(output, 'Models')).toBeDefined();
   });
