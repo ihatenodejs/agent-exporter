@@ -32,4 +32,10 @@ describe('getAdjacentDateRange', () => {
       end: '2026-09-30',
     });
   });
+
+  it('rejects invalid calendar dates instead of normalizing them', () => {
+    expect(() => getAdjacentDateRange('daily', '2026-02-30', 'next')).toThrow(
+      'Invalid start date: 2026-02-30. Use YYYY-MM-DD format.',
+    );
+  });
 });

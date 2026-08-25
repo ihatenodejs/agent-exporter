@@ -94,7 +94,12 @@ export function getAdjacentDateRange(
   startDate: string,
   direction: 'previous' | 'next',
 ): DateRange {
-  const referenceDate = dayjs(startDate).add(
+  const referenceDate = dayjs(startDate, 'YYYY-MM-DD', true);
+  if (!referenceDate.isValid()) {
+    throw new Error(`Invalid start date: ${startDate}. Use YYYY-MM-DD format.`);
+  }
+
+  const adjacentReferenceDate = referenceDate.add(
     direction === 'previous' ? -1 : 1,
     period === 'daily'
       ? 'day'
@@ -104,23 +109,23 @@ export function getAdjacentDateRange(
   switch (period) {
     case 'daily':
       return {
-        start: referenceDate.format('YYYY-MM-DD'),
-        end: referenceDate.format('YYYY-MM-DD'),
+        start: adjacentReferenceDate.format('YYYY-MM-DD'),
+        end: adjacentReferenceDate.format('YYYY-MM-DD'),
       };
     case 'weekly':
       return {
-        start: referenceDate.startOf('week').format('YYYY-MM-DD'),
-        end: referenceDate.endOf('week').format('YYYY-MM-DD'),
+        start: adjacentReferenceDate.startOf('week').format('YYYY-MM-DD'),
+        end: adjacentReferenceDate.endOf('week').format('YYYY-MM-DD'),
       };
     case 'monthly':
       return {
-        start: referenceDate.startOf('month').format('YYYY-MM-DD'),
-        end: referenceDate.endOf('month').format('YYYY-MM-DD'),
+        start: adjacentReferenceDate.startOf('month').format('YYYY-MM-DD'),
+        end: adjacentReferenceDate.endOf('month').format('YYYY-MM-DD'),
       };
     case 'yearly':
       return {
-        start: referenceDate.startOf('year').format('YYYY-MM-DD'),
-        end: referenceDate.endOf('year').format('YYYY-MM-DD'),
+        start: adjacentReferenceDate.startOf('year').format('YYYY-MM-DD'),
+        end: adjacentReferenceDate.endOf('year').format('YYYY-MM-DD'),
       };
   }
 }
