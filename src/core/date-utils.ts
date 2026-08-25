@@ -87,6 +87,44 @@ export function getDateRangeForPeriod(period: TimePeriod): DateRange {
 }
 
 /**
+ * Get the preceding or following calendar period containing a date range.
+ */
+export function getAdjacentDateRange(
+  period: TimePeriod,
+  startDate: string,
+  direction: 'previous' | 'next',
+): DateRange {
+  const referenceDate = dayjs(startDate).add(
+    direction === 'previous' ? -1 : 1,
+    period === 'daily'
+      ? 'day'
+      : (period.slice(0, -2) as 'week' | 'month' | 'year'),
+  );
+
+  switch (period) {
+    case 'daily':
+      return {
+        start: referenceDate.format('YYYY-MM-DD'),
+        end: referenceDate.format('YYYY-MM-DD'),
+      };
+    case 'weekly':
+      return {
+        start: referenceDate.startOf('week').format('YYYY-MM-DD'),
+        end: referenceDate.endOf('week').format('YYYY-MM-DD'),
+      };
+    case 'monthly':
+      return {
+        start: referenceDate.startOf('month').format('YYYY-MM-DD'),
+        end: referenceDate.endOf('month').format('YYYY-MM-DD'),
+      };
+    case 'yearly':
+      return {
+        start: referenceDate.startOf('year').format('YYYY-MM-DD'),
+        end: referenceDate.endOf('year').format('YYYY-MM-DD'),
+      };
+  }
+}
+/**
  * Validate a date string in YYYY-MM-DD format
  */
 export function isValidDateString(dateStr: string): boolean {
