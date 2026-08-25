@@ -102,6 +102,8 @@ const createUsageSummary = ({
 const dashboard = (
   summary: UsageSummary,
   useRawLabels = false,
+  canNavigatePrevious = false,
+  canNavigateNext = false,
 ): ReactElement => (
   <Dashboard
     summary={summary}
@@ -109,6 +111,9 @@ const dashboard = (
     useRawLabels={useRawLabels}
     onRefresh={() => undefined}
     onPeriodChange={() => undefined}
+    onPeriodNavigate={() => undefined}
+    canNavigatePrevious={canNavigatePrevious}
+    canNavigateNext={canNavigateNext}
     currentPeriod="daily"
     onExit={() => undefined}
     lastUpdated={new Date('2026-08-25T12:00:00Z')}
@@ -143,6 +148,25 @@ const findChartTitleLine = (
   output
     .split('\n')
     .find((line) => line.includes(title) && !line.includes('▸'));
+
+describe('Dashboard period controls', () => {
+  it('shows only the available adjacent period direction', async () => {
+    const stdout = new CaptureStream(119, 42);
+    const instance = render(dashboard(createUsageSummary(), false, true), {
+      stdout: stdout as unknown as NodeJS.WriteStream,
+      stdin: new InputStream() as unknown as NodeJS.ReadStream,
+      interactive: false,
+      patchConsole: false,
+    });
+
+    await instance.waitUntilRenderFlush();
+    instance.unmount();
+    await instance.waitUntilExit();
+    instance.cleanup();
+
+    expect(Bun.stripANSI(stdout.output)).toContain('<- Prev period');
+  });
+});
 
 describe('Dashboard charts', () => {
   it('moves the lone Models chart into the left chart panel', async () => {

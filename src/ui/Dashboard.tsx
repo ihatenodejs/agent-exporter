@@ -71,6 +71,9 @@ interface DashboardProps {
     refreshIntervalSeconds?: number,
   ) => void;
   readonly onPeriodChange?: (period: TimePeriod) => void;
+  readonly onPeriodNavigate?: (direction: 'previous' | 'next') => void;
+  readonly canNavigatePrevious?: boolean;
+  readonly canNavigateNext?: boolean;
   readonly currentPeriod?: TimePeriod;
   readonly onExit: () => void;
   readonly lastUpdated: Date;
@@ -84,6 +87,9 @@ export const Dashboard = ({
   useRawLabels = false,
   onRefresh,
   onPeriodChange,
+  onPeriodNavigate,
+  canNavigatePrevious = false,
+  canNavigateNext = false,
   currentPeriod = 'monthly',
   onExit,
   lastUpdated,
@@ -140,6 +146,21 @@ export const Dashboard = ({
     onPeriodChange(nextPeriod);
   }, [onPeriodChange, currentPeriod]);
 
+  const handlePeriodNavigate = useCallback(
+    (direction: 'previous' | 'next') => {
+      if (
+        !onPeriodNavigate ||
+        (direction === 'previous' && !canNavigatePrevious) ||
+        (direction === 'next' && !canNavigateNext)
+      ) {
+        return;
+      }
+
+      onPeriodNavigate(direction);
+    },
+    [onPeriodNavigate, canNavigatePrevious, canNavigateNext],
+  );
+
   useInput((input, key) => {
     if (key.ctrl && input === 'c') {
       onExit();
@@ -172,6 +193,10 @@ export const Dashboard = ({
       setTimeUntilRefresh(newInterval);
     } else if (input === 'p') {
       handlePeriodToggle();
+    } else if (key.leftArrow) {
+      handlePeriodNavigate('previous');
+    } else if (key.rightArrow) {
+      handlePeriodNavigate('next');
     } else if (input === '?') {
       setShowHelp(true);
     }
@@ -317,8 +342,15 @@ export const Dashboard = ({
           {chalk.bold(
             currentPeriod.charAt(0).toUpperCase() + currentPeriod.slice(1),
           )}
+          {'   '}
+          {canNavigatePrevious && canNavigateNext
+            ? `${chalk.bold('<-/->')} Next/Prev period`
+            : canNavigatePrevious
+              ? `${chalk.bold('<-')} Prev period`
+              : canNavigateNext
+                ? `${chalk.bold('->')} Next period`
+                : 'No adjacent periods available'}
         </Text>
-        <Text color="white">{chalk.bold('?')} Toggle help</Text>
         <Text color="red">{chalk.bold('Ctrl+C')} Exit</Text>
       </Box>
     </Box>
@@ -363,6 +395,9 @@ export const Dashboard = ({
           <Text color="blueBright">
             {chalk.bold('p')} Cycle time period (daily → weekly → monthly →
             yearly)
+          </Text>
+          <Text color="blueBright">
+            {chalk.bold('<-')} Previous period / {chalk.bold('->')} Next period
           </Text>
           <Text color="white">
             {chalk.bold('?')} Show or hide this help view

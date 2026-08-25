@@ -11,6 +11,7 @@ import React from 'react';
 import packageJson from '../package.json';
 import {fillMissingDates} from './core/aggregator';
 import {
+  getAdjacentDateRange,
   getDateRangeDescription,
   getDateRangeForPeriod,
   isValidDateString,
@@ -595,6 +596,27 @@ async function displayDashboard(
       updateTerminalTitle();
     };
 
+    const navigatePeriod = (direction: 'previous' | 'next'): void => {
+      const range = getAdjacentDateRange(
+        currentPeriod,
+        currentStartDate,
+        direction,
+      );
+      const dateBounds = dbManager?.getMessageDateBounds();
+
+      if (
+        !dateBounds ||
+        (direction === 'previous' && range.end < dateBounds.earliest) ||
+        (direction === 'next' && range.start > dateBounds.latest)
+      ) {
+        return;
+      }
+
+      currentStartDate = range.start;
+      currentEndDate = range.end;
+      updateTerminalTitle();
+    };
+
     const getCurrentRangeDescription = (): string => {
       return getDateRangeDescription(currentStartDate, currentEndDate);
     };
@@ -670,17 +692,24 @@ async function displayDashboard(
       summary: UsageSummary;
       lastUpdated: Date;
       isSyncing: boolean;
+      canNavigatePrevious: boolean;
+      canNavigateNext: boolean;
     }> => {
       if (!dbManager) {
         throw new Error('Database manager not initialized');
       }
 
-      const range = getDateRangeForPeriod(currentPeriod);
-      currentStartDate = range.start;
-      currentEndDate = range.end;
       updateTerminalTitle();
 
       await syncFromProviders(refreshIntervalSeconds, isManualRefresh);
+
+      const dateBounds = dbManager.getMessageDateBounds();
+      const canNavigatePrevious = Boolean(
+        dateBounds && currentStartDate > dateBounds.earliest,
+      );
+      const canNavigateNext = Boolean(
+        dateBounds && currentEndDate < dateBounds.latest,
+      );
 
       const messages = dbManager.getMessagesByDateRange(
         currentStartDate,
@@ -696,7 +725,13 @@ async function displayDashboard(
         currentEndDate,
       );
       const summary = computeUsageSummary(messages, normalizedDailyUsage);
-      return {summary, lastUpdated: new Date(), isSyncing};
+      return {
+        summary,
+        lastUpdated: new Date(),
+        isSyncing,
+        canNavigatePrevious,
+        canNavigateNext,
+      };
     };
 
     const {DashboardContainer} = await import('./ui/DashboardContainer');
@@ -708,6 +743,7 @@ async function displayDashboard(
         useRawLabels,
         fetchData: fetchDashboardData,
         onPeriodChange: updatePeriod,
+        onPeriodNavigate: navigatePeriod,
         currentPeriod,
         onExit: () => {
           // Clean up will happen in finally block
