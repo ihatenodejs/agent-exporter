@@ -1,4 +1,6 @@
 import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+dayjs.extend(customParseFormat);
 
 export interface DateRange {
   start: string;
@@ -84,6 +86,49 @@ export function getDateRangeForPeriod(period: TimePeriod): DateRange {
   }
 }
 
+/**
+ * Get the preceding or following calendar period containing a date range.
+ */
+export function getAdjacentDateRange(
+  period: TimePeriod,
+  startDate: string,
+  direction: 'previous' | 'next',
+): DateRange {
+  const referenceDate = dayjs(startDate, 'YYYY-MM-DD', true);
+  if (!referenceDate.isValid()) {
+    throw new Error(`Invalid start date: ${startDate}. Use YYYY-MM-DD format.`);
+  }
+
+  const adjacentReferenceDate = referenceDate.add(
+    direction === 'previous' ? -1 : 1,
+    period === 'daily'
+      ? 'day'
+      : (period.slice(0, -2) as 'week' | 'month' | 'year'),
+  );
+
+  switch (period) {
+    case 'daily':
+      return {
+        start: adjacentReferenceDate.format('YYYY-MM-DD'),
+        end: adjacentReferenceDate.format('YYYY-MM-DD'),
+      };
+    case 'weekly':
+      return {
+        start: adjacentReferenceDate.startOf('week').format('YYYY-MM-DD'),
+        end: adjacentReferenceDate.endOf('week').format('YYYY-MM-DD'),
+      };
+    case 'monthly':
+      return {
+        start: adjacentReferenceDate.startOf('month').format('YYYY-MM-DD'),
+        end: adjacentReferenceDate.endOf('month').format('YYYY-MM-DD'),
+      };
+    case 'yearly':
+      return {
+        start: adjacentReferenceDate.startOf('year').format('YYYY-MM-DD'),
+        end: adjacentReferenceDate.endOf('year').format('YYYY-MM-DD'),
+      };
+  }
+}
 /**
  * Validate a date string in YYYY-MM-DD format
  */

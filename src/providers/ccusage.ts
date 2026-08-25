@@ -2,6 +2,7 @@ import dayjs from 'dayjs';
 import {z} from 'zod';
 
 import {normalizeAndLogError} from '../core/error-utils';
+import {resolveCCUsageCommand} from '../core/harness-availability';
 import {calculateCost} from '../core/pricing';
 import {spawnCommandAndParseJson} from '../core/spawn-utils';
 import {
@@ -226,8 +227,15 @@ export class CCUsageAdapter implements UsageProviderAdapter {
 
   async fetchUsageEntries(): Promise<UsageEntry[]> {
     try {
+      const executable = resolveCCUsageCommand();
+      if (!executable) {
+        throw new Error('ccusage or bunx must be available on PATH');
+      }
+
       const ccusageData = await spawnCommandAndParseJson(
-        ['ccusage', 'daily', '--json'],
+        executable === 'ccusage'
+          ? ['ccusage', 'daily', '--json']
+          : ['bunx', 'ccusage', 'daily', '--json'],
         CCUsageExportSchema,
       );
 

@@ -29,7 +29,7 @@ bun install -g agent-exporter
 ```bash
 git clone https://github.com/ihatenodejs/agent-exporter.git
 cd agent-exporter
-bun install
+bun install --frozen-lockfile
 bun run build
 bun link
 ```

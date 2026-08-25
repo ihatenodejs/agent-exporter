@@ -4,10 +4,17 @@ import {describe, expect, it} from 'bun:test';
 import dayjs from 'dayjs';
 
 import {
+  createTemporaryDatabasePath,
+  removeTemporaryDatabasePath,
+} from './database-test-utils';
+import {DatabaseManager} from '../database/manager';
+import {initializeDatabase} from '../database/schema';
+import {
   CCUsageExportSchema,
   convertCcUsageExportToMessages,
 } from '../providers/ccusage';
 
+import type {UnifiedMessage} from '../core/types';
 const cliPath = fileURLToPath(new URL('../cli.ts', import.meta.url));
 
 const runCli = async (
@@ -15,12 +22,14 @@ const runCli = async (
 ): Promise<{exitCode: number; output: string}> => {
   const child = Bun.spawn([process.execPath, cliPath, ...args], {
     stdout: 'pipe',
+    stderr: 'pipe',
   });
-  const [exitCode, output] = await Promise.all([
+  const [exitCode, output, errorOutput] = await Promise.all([
     child.exited,
     new Response(child.stdout).text(),
+    new Response(child.stderr).text(),
   ]);
-  return {exitCode, output};
+  return {exitCode, output: output + errorOutput};
 };
 
 const loadSample = async (): Promise<unknown> => {
@@ -82,6 +91,68 @@ describe('CLI ccusage ingestion sample', () => {
       date: '2025-01-01',
     });
     expect(message.timestamp).toBe(expectedTimestamp);
+  });
+});
+
+describe('CLI range', () => {
+  it('queries ISO dates and rejects non-ISO bounds', async () => {
+    const databasePath = await createTemporaryDatabasePath();
+    const databaseManager = new DatabaseManager(
+      initializeDatabase(databasePath),
+    );
+    const message: UnifiedMessage = {
+      id: 'range-regression-message',
+      sessionId: 'range-regression-session',
+      provider: 'openai',
+      model: 'range-regression-model',
+      inputTokens: 100,
+      outputTokens: 50,
+      reasoningTokens: 0,
+      cacheCreationTokens: 0,
+      cacheReadTokens: 0,
+      cost: 0.01,
+      timestamp: Date.UTC(2026, 7, 16),
+      date: '2026-08-16',
+    };
+    let databaseClosed = false;
+
+    try {
+      databaseManager.insertMessage(message);
+      databaseManager.close();
+      databaseClosed = true;
+
+      const validRange = await runCli(
+        'range',
+        '--start',
+        '2026-08-16',
+        '--end',
+        '2026-08-22',
+        '--db',
+        databasePath,
+      );
+
+      expect(validRange.exitCode).toBe(0);
+      expect(validRange.output).toContain('Messages 1');
+      expect(validRange.output).toContain(message.model);
+
+      const invalidRange = await runCli(
+        'range',
+        '--start',
+        '08-16-2026',
+        '--end',
+        '2026-08-22',
+        '--db',
+        databasePath,
+      );
+
+      expect(invalidRange.exitCode).not.toBe(0);
+      expect(invalidRange.output).toContain(
+        'Invalid start date: 08-16-2026. Use YYYY-MM-DD format.',
+      );
+    } finally {
+      if (!databaseClosed) databaseManager.close();
+      await removeTemporaryDatabasePath(databasePath);
+    }
   });
 });
 

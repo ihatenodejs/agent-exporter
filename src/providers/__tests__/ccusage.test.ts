@@ -1,7 +1,8 @@
-import {describe, expect, it} from 'bun:test';
+import {describe, expect, it, vi} from 'bun:test';
 import dayjs from 'dayjs';
 
 import {
+  CCUsageAdapter,
   CCUsageExportSchema,
   convertCcUsageExportToMessages,
   detectProviderFromModel,
@@ -116,5 +117,41 @@ describe('CCUsage utilities', () => {
     });
     expect(second.reasoningTokens).toBe(0);
     expect(second.timestamp).toBe(secondTimestamp);
+  });
+});
+
+describe('CCUsageAdapter', () => {
+  it('uses bunx when ccusage is not installed', async () => {
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new TextEncoder().encode('{"daily":[]}'));
+        controller.close();
+      },
+    });
+    const which = vi
+      .spyOn(Bun, 'which')
+      .mockImplementation((executable) =>
+        executable === 'bunx' ? '/bin/bunx' : null,
+      );
+    const spawn = vi.spyOn(Bun, 'spawn').mockImplementation(
+      () =>
+        ({
+          stdout: stream,
+          stderr: stream,
+          exited: Promise.resolve(0),
+        }) as never,
+    );
+
+    try {
+      const entries = await new CCUsageAdapter().fetchUsageEntries();
+      expect(entries).toEqual([]);
+      expect(spawn).toHaveBeenCalledWith(
+        ['bunx', 'ccusage', 'daily', '--json'],
+        {stdout: 'pipe', stderr: 'pipe'},
+      );
+    } finally {
+      spawn.mockRestore();
+      which.mockRestore();
+    }
   });
 });

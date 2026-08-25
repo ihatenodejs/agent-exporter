@@ -35,6 +35,18 @@ Run TypeScript type checking:
 bun run typecheck
 ```
 
+## Quality Hooks
+
+Install the repository's Git hooks after cloning:
+
+```bash
+pre-commit install --install-hooks
+```
+
+Pre-commit formats staged supported files, lints staged TypeScript sources,
+and checks file integrity, merge conflicts, large files, and private keys.
+Pre-push runs the complete TypeScript type check and Bun test suite.
+
 ## Local Testing
 
 Link the package for local testing:

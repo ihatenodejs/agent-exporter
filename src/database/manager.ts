@@ -109,6 +109,18 @@ export class DatabaseManager {
     return aggregateMessagesByDailyUsage(messages);
   }
 
+  getMessageDateBounds(): {earliest: string; latest: string} | null {
+    const row = this.db
+      .prepare(
+        'SELECT MIN(date) AS earliest, MAX(date) AS latest FROM messages',
+      )
+      .get() as {earliest: string | null; latest: string | null};
+
+    if (!row.earliest || !row.latest) return null;
+
+    return {earliest: row.earliest, latest: row.latest};
+  }
+
   getSyncState(
     provider: string,
   ): {lastSyncTimestamp: number; lastMessageId: string | null} | null {
