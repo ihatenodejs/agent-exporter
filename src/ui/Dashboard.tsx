@@ -2,17 +2,12 @@ import chalk from 'chalk';
 import {Box, Text, useApp, useInput, useStdout} from 'ink';
 import {useState, useEffect, useCallback, useMemo, useRef} from 'react';
 
-import {
-  formatCount,
-  formatTokens,
-  formatCurrency,
-  integerFormatter,
-  decimalFormatter,
-  currencyFormatter,
-} from './formatters';
+import {formatCount, formatTokens, formatCurrency} from './formatters';
+import {PieChart} from './PieChart';
 import {Table, type TableRow} from './Table';
 import {getModelDisplayName} from '../core/database/model-labels';
 
+import type {PieChartSlice} from './PieChart';
 import type {TimePeriod} from '../core/date-utils';
 import type {UsageSummary} from '../core/statistics';
 import type {ReactElement} from 'react';
@@ -30,19 +25,19 @@ const LAYOUT_OPTIONS: LayoutOption[] = [
   {
     key: '3x1',
     minWidth: 171,
-    minHeight: 40,
+    minHeight: 50,
     label: '3x1 (wide)',
   },
   {
     key: '2x2',
     minWidth: 119,
-    minHeight: 32,
+    minHeight: 42,
     label: '2x2 (balanced)',
   },
   {
     key: '1x3',
     minWidth: 72,
-    minHeight: 50,
+    minHeight: 62,
     label: '1x3 (tall)',
   },
 ];
@@ -227,12 +222,8 @@ export const Dashboard = ({
     summary.modelRows.length > 0;
   const isDailyPeriod = currentPeriod === 'daily';
   const miniTableGap = isWideLayout ? 2 : 1;
-  const quickStatsGap = isWideLayout ? 2 : 1;
 
-  const headerCard = (
-    withMarginBottom: boolean,
-    includeTotals: boolean,
-  ): ReactElement => (
+  const headerCard = (withMarginBottom: boolean): ReactElement => (
     <Box
       flexDirection="column"
       borderStyle="round"
@@ -283,46 +274,11 @@ export const Dashboard = ({
           Next refresh: {autoRefresh ? `${timeUntilRefresh}s` : 'paused'}
         </Text>
       </Box>
-      {includeTotals ? (
-        <Box
-          flexDirection="column"
-          marginTop={1}
-        >
-          <Text
-            color="greenBright"
-            bold
-          >
-            {`Total Cost: ${currencyFormatter.format(summary.totals.totalCost)}`}
-          </Text>
-          <Text
-            color="cyan"
-            bold
-          >
-            {`Total Tokens: ${integerFormatter.format(summary.totals.totalTokens)}`}
-          </Text>
-          {!isDailyPeriod ? (
-            <>
-              <Text
-                color="yellowBright"
-                bold
-              >
-                {`Avg Daily Cost: ${currencyFormatter.format(summary.averageDailyCost)}`}
-              </Text>
-              <Text
-                color="magenta"
-                bold
-              >
-                {`Avg Daily Tokens: ${decimalFormatter.format(summary.averageDailyTokens)}`}
-              </Text>
-            </>
-          ) : null}
-        </Box>
-      ) : null}
     </Box>
   );
 
-  const headerPanelGrid = headerCard(false, true);
-  const headerPanelStacked = headerCard(false, true);
+  const headerPanelGrid = headerCard(false);
+  const headerPanelStacked = headerCard(false);
 
   const controlsCard = (withMarginBottom: boolean): ReactElement => (
     <Box
@@ -490,6 +446,34 @@ export const Dashboard = ({
         };
       });
   }, [summary, useRawLabels]);
+
+  const providerChartSlices = useMemo<PieChartSlice[]>(
+    () =>
+      summary.providerRows.map((row) => ({
+        id: row.name,
+        label: row.name,
+        value: row.totalCost,
+      })),
+    [summary.providerRows],
+  );
+
+  const modelChartSlices = useMemo<PieChartSlice[]>(
+    () =>
+      summary.modelRows.map((row) => ({
+        id: row.name,
+        label: useRawLabels ? row.name : getModelDisplayName(row.name),
+        value: row.totalCost,
+      })),
+    [summary.modelRows, useRawLabels],
+  );
+
+  const showProviderChart = summary.providerRows.length >= 2;
+  const chartContentWidth = Math.max(1, terminalWidth - 2);
+  const pairedChartWidth = Math.max(2, chartContentWidth - miniTableGap);
+  const providerChartWidth = Math.floor(pairedChartWidth / 2);
+  const modelChartWidth = showProviderChart
+    ? pairedChartWidth - providerChartWidth
+    : providerChartWidth;
 
   const miniTableSections: MiniTableSection[] = [
     {
@@ -729,7 +713,7 @@ export const Dashboard = ({
             flexGrow={1}
             marginRight={miniTableGap}
           >
-            {headerCard(false, false)}
+            {headerCard(false)}
           </Box>
           <Box
             flexDirection="column"
@@ -740,60 +724,47 @@ export const Dashboard = ({
         </Box>
       ) : null}
 
-      {/* Quick Stats */}
-      {isWideLayout ? (
-        <Box
-          flexDirection="row"
-          marginBottom={1}
-        >
-          <Box
-            flexDirection="column"
-            marginRight={quickStatsGap}
-            flexGrow={1}
-          >
-            <Text
-              key="total-cost-main"
-              color="greenBright"
-              bold
-            >
-              {`Total Cost: ${currencyFormatter.format(summary.totals.totalCost)}`}
-            </Text>
-            {!isDailyPeriod && (
-              <Text
-                key="avg-daily-cost-main"
-                color="yellowBright"
-                bold
-              >
-                {`Avg Daily Cost: ${currencyFormatter.format(summary.averageDailyCost)}`}
-              </Text>
-            )}
-          </Box>
-          <Box
-            flexDirection="column"
-            flexGrow={1}
-          >
-            <Text
-              key="total-tokens-main"
-              color="cyan"
-              bold
-            >
-              {`Total Tokens: ${integerFormatter.format(summary.totals.totalTokens)}`}
-            </Text>
-            {!isDailyPeriod && (
-              <Text
-                key="avg-daily-tokens-main"
-                color="magenta"
-                bold
-              >
-                {`Avg Daily Tokens: ${decimalFormatter.format(summary.averageDailyTokens)}`}
-              </Text>
-            )}
-          </Box>
-        </Box>
-      ) : null}
-
       {/* Mini Tables */}
       {miniTablesContent}
+
+      {/* Cost Charts */}
+      <Box
+        flexDirection="row"
+        width={chartContentWidth}
+        marginBottom={1}
+        overflow="hidden"
+      >
+        <Box
+          key="providers-chart"
+          display={showProviderChart ? 'flex' : 'none'}
+          width={providerChartWidth}
+          flexShrink={0}
+          marginRight={showProviderChart ? miniTableGap : 0}
+          overflow="hidden"
+        >
+          <PieChart
+            slices={providerChartSlices}
+            width={providerChartWidth}
+            title="Providers"
+            showLegend
+            showPercentages
+          />
+        </Box>
+        <Box
+          key="models-chart"
+          width={modelChartWidth}
+          flexShrink={0}
+          overflow="hidden"
+        >
+          <PieChart
+            slices={modelChartSlices}
+            width={modelChartWidth}
+            title="Models"
+            showLegend
+            showPercentages
+          />
+        </Box>
+      </Box>
 
       {!hasUsage ? (
         <Box marginTop={1}>
