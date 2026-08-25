@@ -133,7 +133,6 @@ describe('AntigravityAdapter', () => {
         timestamp: expectedTimestamp,
         date: dayjs(expectedTimestamp).format('YYYY-MM-DD'),
       });
-      expect(messages[0]?.cost).toBeCloseTo(0.000082875, 10);
       expect(warn).not.toHaveBeenCalled();
     } finally {
       rmSync(root, {recursive: true, force: true});

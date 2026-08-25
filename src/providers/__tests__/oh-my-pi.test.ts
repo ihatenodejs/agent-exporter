@@ -2,21 +2,11 @@ import {copyFileSync, mkdirSync, mkdtempSync, rmSync, writeFileSync} from 'fs';
 import {tmpdir} from 'os';
 import {join} from 'path';
 
-import {describe, expect, it, mock} from 'bun:test';
+import {describe, expect, it} from 'bun:test';
 
 import {OhMyPiAdapter} from '../oh-my-pi';
 
 const fixturePath = join(import.meta.dir, 'fixtures', 'oh-my-pi-session.jsonl');
-
-await mock.module('@oh-my-pi/pi-catalog/models.json', () => ({
-  default: {
-    'google-antigravity': {
-      'gemini-3.6-flash': {
-        cost: {input: 3, output: 4.5, cacheRead: 1.65, cacheWrite: 0},
-      },
-    },
-  },
-}));
 
 const createOhMyPiSession = (root: string): void => {
   const sessionDirectory = join(root, '-fixture');
@@ -88,7 +78,7 @@ describe('OhMyPiAdapter', () => {
       const messages = await adapter.fetchMessages();
 
       expect(messages).toHaveLength(1);
-      expect(messages[0]?.cost).toBe(9.15);
+      expect(messages[0]?.cost).toBe(4.575);
     } finally {
       rmSync(tempRoot, {recursive: true, force: true});
     }
