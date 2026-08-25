@@ -581,7 +581,7 @@ async function displayDashboard(
     const db = initializeDatabase(dbPath);
     dbManager = new DatabaseManager(db);
 
-    let currentPeriod: TimePeriod = 'monthly';
+    let currentPeriod: TimePeriod = 'daily';
     let currentStartDate = startDate;
     let currentEndDate = endDate;
     let isSyncing = false;
@@ -592,11 +592,22 @@ async function displayDashboard(
       const range = getDateRangeForPeriod(period);
       currentStartDate = range.start;
       currentEndDate = range.end;
+      updateTerminalTitle();
     };
 
     const getCurrentRangeDescription = (): string => {
       return getDateRangeDescription(currentStartDate, currentEndDate);
     };
+
+    const updateTerminalTitle = (): void => {
+      if (process.stdout.isTTY) {
+        process.stdout.write(
+          `\x1B]0;Agent Exporter Live (${getCurrentRangeDescription()})\x07`,
+        );
+      }
+    };
+
+    updateTerminalTitle();
 
     const syncFromProviders = async (
       refreshIntervalSeconds = 30,
@@ -667,6 +678,7 @@ async function displayDashboard(
       const range = getDateRangeForPeriod(currentPeriod);
       currentStartDate = range.start;
       currentEndDate = range.end;
+      updateTerminalTitle();
 
       await syncFromProviders(refreshIntervalSeconds, isManualRefresh);
 
@@ -721,7 +733,7 @@ program
     'Display raw model identifiers instead of friendly labels',
   )
   .action(async (options: StatsCommandOptions): Promise<void> => {
-    const {start, end} = getDateRangeForPeriod('monthly');
+    const {start, end} = getDateRangeForPeriod('daily');
     await displayDashboard(
       start,
       end,
