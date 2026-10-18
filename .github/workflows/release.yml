@@ -100,9 +100,6 @@ jobs:
           bun run format:check
           bunx tsc --noEmit
 
-      - name: Build
-        run: bun run build
-
       - name: Publish to npm
         run: |
           VERSION=$(node -p "require('./package.json').version")

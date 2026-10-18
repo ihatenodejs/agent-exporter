@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import {Box, Text, useApp, useInput, useStdout} from 'ink';
+import {Box, Text, useApp, useInput, useWindowSize} from 'ink';
 import {useState, useEffect, useCallback, useMemo, useRef} from 'react';
 
 import {formatCount, formatTokens, formatCurrency} from './formatters';
@@ -102,12 +102,9 @@ export const Dashboard = ({
   const [timeUntilRefresh, setTimeUntilRefresh] = useState(refreshInterval);
   const timeUntilRefreshRef = useRef(timeUntilRefresh);
   const [showHelp, setShowHelp] = useState(false);
-  const {stdout} = useStdout();
-  const [terminalSize, setTerminalSize] = useState(() => ({
-    width: stdout.columns || DEFAULT_LAYOUT.minWidth,
-    height: stdout.rows || DEFAULT_LAYOUT.minHeight,
-  }));
-  const {width: terminalWidth, height: terminalHeight} = terminalSize;
+  const {columns, rows} = useWindowSize();
+  const terminalWidth = columns > 0 ? columns : DEFAULT_LAYOUT.minWidth;
+  const terminalHeight = rows > 0 ? rows : DEFAULT_LAYOUT.minHeight;
 
   const layoutStates = useMemo(() => {
     return LAYOUT_OPTIONS.map((option) => {
@@ -201,22 +198,6 @@ export const Dashboard = ({
       setShowHelp(true);
     }
   });
-
-  useEffect(() => {
-    const handleResize = (): void => {
-      setTerminalSize({
-        width: stdout.columns || DEFAULT_LAYOUT.minWidth,
-        height: stdout.rows || DEFAULT_LAYOUT.minHeight,
-      });
-    };
-
-    stdout.on('resize', handleResize);
-
-    return () => {
-      stdout.off('resize', handleResize);
-      stdout.removeListener('resize', handleResize);
-    };
-  }, [stdout]);
 
   useEffect(() => {
     if (!autoRefresh || !hasActiveLayout) {
