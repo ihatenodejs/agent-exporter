@@ -1,5 +1,6 @@
 import {afterAll, afterEach, describe, expect, it, mock} from 'bun:test';
 
+import {findFallbackPrice} from '../database/prices';
 import {
   calculateCost,
   calculateDetailedCost,
@@ -173,6 +174,59 @@ describe('calculateCost', () => {
 
     expect(total).toBe(0);
   });
+  it('selects the most specific fallback model for namespaced identifiers', () => {
+    calcPriceMock.mockReturnValue(null as CalcPriceResult);
+
+    // z-ai/glm-4.5-air: 0.2 input, 1.1 output, 0.03 cache-read per 1M (total 1.33, not 2.01 from glm-4.5)
+    const cost = calculateCost(
+      'z-ai/glm-4.5-air',
+      1_000_000,
+      1_000_000,
+      0,
+      1_000_000,
+    );
+
+    expect(cost).toBeCloseTo(1.33, 5);
+  });
+
+  it('resolves fallback prices for case-varied, exact, base, regex, and empty models', () => {
+    calcPriceMock.mockReturnValue(null as CalcPriceResult);
+
+    // Case-varied GLM-4.5-AIR resolves to glm-4.5-air (0.2 + 1.1 + 0.03 = 1.33)
+    expect(
+      calculateCost('GLM-4.5-AIR', 1_000_000, 1_000_000, 0, 1_000_000),
+    ).toBeCloseTo(1.33, 5);
+
+    // Exact air: glm-4.5-air
+    expect(
+      calculateCost('glm-4.5-air', 1_000_000, 1_000_000, 0, 1_000_000),
+    ).toBeCloseTo(1.33, 5);
+
+    // Exact base: glm-4.5 (0.35 + 1.55 + 0.11 = 2.01)
+    expect(
+      calculateCost('glm-4.5', 1_000_000, 1_000_000, 0, 1_000_000),
+    ).toBeCloseTo(2.01, 5);
+
+    // Regex-qualified MiMo variant: mimo-v2.5-pro-preview (0.435 + 0.87 + 0.0036 = 1.3086)
+    expect(
+      calculateCost(
+        'mimo-v2.5-pro-preview',
+        1_000_000,
+        1_000_000,
+        0,
+        1_000_000,
+      ),
+    ).toBeCloseTo(1.3086, 5);
+
+    // Unknown model defaults to 0
+    expect(
+      calculateCost('unknown-model', 1_000_000, 1_000_000, 0, 1_000_000),
+    ).toBe(0);
+
+    // Empty and whitespace queries do not match arbitrary fallback models
+    expect(calculateCost('', 1_000_000, 1_000_000, 0, 1_000_000)).toBe(0);
+    expect(calculateCost('   ', 1_000_000, 1_000_000, 0, 1_000_000)).toBe(0);
+  });
 });
 
 describe('calculateDetailedCost', () => {
@@ -248,6 +302,40 @@ describe('calculateDetailedCost', () => {
       source: 'none',
     });
   });
+  it('prefers the most specific fallback model for detailed costs', () => {
+    calcPriceMock.mockReturnValue(null as CalcPriceResult);
+
+    const cost = calculateDetailedCost(
+      'z-ai/glm-4.5-air',
+      1_000_000,
+      1_000_000,
+      0,
+      1_000_000,
+    );
+
+    expect(cost).toEqual({
+      totalCost: 1.33,
+      inputCost: 0.2,
+      outputCost: 1.1,
+      cacheWriteCost: 0,
+      cacheReadCost: 0.03,
+      providerName: undefined,
+      modelName: 'glm-4.5-air',
+      source: 'fallback',
+    });
+  });
+
+  it('returns zeroed costs for empty or whitespace-only model names', () => {
+    calcPriceMock.mockReturnValue(null as CalcPriceResult);
+
+    const emptyCost = calculateDetailedCost('', 1000, 1000, 0, 0);
+    expect(emptyCost.source).toBe('none');
+    expect(emptyCost.totalCost).toBe(0);
+
+    const whitespaceCost = calculateDetailedCost('   ', 1000, 1000, 0, 0);
+    expect(whitespaceCost.source).toBe('none');
+    expect(whitespaceCost.totalCost).toBe(0);
+  });
 });
 
 describe('getModelPricing', () => {
@@ -298,6 +386,25 @@ describe('getModelPricing', () => {
     const pricing = getModelPricing('unknown-model');
 
     expect(pricing).toBeNull();
+  });
+  it('selects the most specific fallback model pricing for namespaced models', () => {
+    calcPriceMock.mockReturnValue(null as CalcPriceResult);
+
+    const pricing = getModelPricing('z-ai/glm-4.5-air');
+
+    expect(pricing).toEqual({
+      inputPer1M: 0.2,
+      outputPer1M: 1.1,
+      cacheWritePer1M: 0,
+      cacheReadPer1M: 0.03,
+    });
+  });
+
+  it('returns null for empty or whitespace-only model names', () => {
+    calcPriceMock.mockReturnValue(null as CalcPriceResult);
+
+    expect(getModelPricing('')).toBeNull();
+    expect(getModelPricing('   ')).toBeNull();
   });
 });
 
@@ -368,5 +475,34 @@ describe('calculateOhMyPiCatalogCost', () => {
     expect(catalogOverrides.get('openai-codex')).toBeDefined();
     expect(catalogOverrides.get('openai')).toBeDefined();
     expect(cost).toBe(10);
+  });
+});
+
+describe('findFallbackPrice', () => {
+  it('prefers the longest containing match over broader models', () => {
+    const price = findFallbackPrice('z-ai/glm-4.5-air');
+
+    expect(price?.model).toBe('glm-4.5-air');
+    expect(price?.inputPer1M).toBe(0.2);
+    expect(price?.outputPer1M).toBe(1.1);
+    expect(price?.cacheReadPer1M).toBe(0.03);
+  });
+
+  it('matches case-insensitively when identifying containing models', () => {
+    const price = findFallbackPrice('GLM-4.5-AIR');
+
+    expect(price?.model).toBe('glm-4.5-air');
+  });
+
+  it('retains reverse-containment compatibility for abbreviated identifiers', () => {
+    const price = findFallbackPrice('glm-4');
+
+    expect(price?.model).toBe('glm-4.6');
+  });
+
+  it('returns null for empty, whitespace, and unknown queries', () => {
+    expect(findFallbackPrice('')).toBeNull();
+    expect(findFallbackPrice('   ')).toBeNull();
+    expect(findFallbackPrice('unknown-model-xyz')).toBeNull();
   });
 });
