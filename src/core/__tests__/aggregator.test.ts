@@ -1,10 +1,11 @@
 import {describe, expect, it} from 'bun:test';
-import dayjs from 'dayjs';
 
 import {
   fillMissingDates,
   generateCCUsageExport,
   generateDateRange,
+  UNBOUNDED_END,
+  UNBOUNDED_START,
 } from '../aggregator';
 
 import type {DailyUsage} from '../types';
@@ -51,20 +52,48 @@ describe('generateCCUsageExport', () => {
 });
 
 describe('generateDateRange', () => {
-  it('defaults to a 30-day window ending today', () => {
-    const before = dayjs();
+  it('defaults to unbounded sentinels 0001-01-01 and 9999-12-31 when no bounds are provided', () => {
     const range = generateDateRange();
-    const after = dayjs();
+    expect(range).toEqual({
+      start: UNBOUNDED_START,
+      end: UNBOUNDED_END,
+    });
+  });
 
-    const start = dayjs(range.start);
-    const end = dayjs(range.end);
+  it('treats empty strings as unbounded sentinels', () => {
+    const range = generateDateRange('', '');
+    expect(range).toEqual({
+      start: '0001-01-01',
+      end: '9999-12-31',
+    });
+  });
 
-    expect(end.diff(start, 'day')).toBe(30);
-    expect(end.isSame(before, 'day') || end.isSame(after, 'day')).toBe(true);
+  it('resolves lower-only bound with unbounded end sentinel', () => {
+    const range = generateDateRange('2024-01-01');
+    expect(range).toEqual({
+      start: '2024-01-01',
+      end: '9999-12-31',
+    });
+  });
+
+  it('resolves upper-only bound with unbounded start sentinel', () => {
+    const range = generateDateRange(undefined, '2024-02-01');
+    expect(range).toEqual({
+      start: '0001-01-01',
+      end: '2024-02-01',
+    });
   });
 
   it('returns provided start and end dates without modification', () => {
     const range = generateDateRange('2024-01-01', '2024-02-01');
+    expect(range).toEqual({start: '2024-01-01', end: '2024-02-01'});
+  });
+
+  it('normalizes ISO datetime strings to YYYY-MM-DD date bounds', () => {
+    const range = generateDateRange(
+      '2024-01-01T15:30:00Z',
+      '2024-02-01T18:45:00Z',
+    );
     expect(range).toEqual({start: '2024-01-01', end: '2024-02-01'});
   });
 });

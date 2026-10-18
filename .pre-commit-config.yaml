@@ -1,0 +1,47 @@
+default_install_hook_types:
+  - pre-commit
+  - pre-push
+
+default_stages: [pre-commit]
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-merge-conflict
+      - id: check-added-large-files
+      - id: detect-private-key
+      - id: check-json
+      - id: check-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+
+  - repo: local
+    hooks:
+      - id: prettier
+        name: Prettier
+        entry: bunx prettier --write
+        language: system
+        files: '\.(?:[cm]?js|[jt]sx?|json|ya?ml|md)$'
+
+      - id: eslint
+        name: ESLint
+        entry: bunx eslint
+        language: system
+        files: '^src/.*\.(?:ts|tsx)$'
+
+      - id: typecheck
+        name: TypeScript type check
+        entry: bun run typecheck
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      - id: test
+        name: Bun tests
+        entry: bun test
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]

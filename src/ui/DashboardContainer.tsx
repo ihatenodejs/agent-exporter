@@ -18,8 +18,11 @@ interface DashboardContainerProps {
     summary: UsageSummary;
     lastUpdated: Date;
     isSyncing: boolean;
+    canNavigatePrevious: boolean;
+    canNavigateNext: boolean;
   }>;
   readonly onPeriodChange?: (period: TimePeriod) => void;
+  readonly onPeriodNavigate?: (direction: 'previous' | 'next') => void;
   readonly currentPeriod?: TimePeriod;
   readonly onExit: () => void;
 }
@@ -29,6 +32,7 @@ export const DashboardContainer = ({
   useRawLabels = false,
   fetchData,
   onPeriodChange,
+  onPeriodNavigate,
   currentPeriod = 'monthly',
   onExit,
 }: DashboardContainerProps): ReactElement => {
@@ -36,6 +40,8 @@ export const DashboardContainer = ({
     summary: UsageSummary;
     lastUpdated: Date;
     isSyncing: boolean;
+    canNavigatePrevious: boolean;
+    canNavigateNext: boolean;
   } | null>(null);
   const [currentRangeDescription, setCurrentRangeDescription] =
     useState(getRangeDescription);
@@ -75,9 +81,20 @@ export const DashboardContainer = ({
         console.error('Error during period change:', error);
       }
     },
-    [onPeriodChange, handleRefresh, getRangeDescription],
+    [onPeriodChange, handleRefresh],
   );
 
+  const handlePeriodNavigate = useCallback(
+    async (direction: 'previous' | 'next') => {
+      try {
+        onPeriodNavigate?.(direction);
+        await handleRefresh();
+      } catch (error) {
+        console.error('Error during period navigation:', error);
+      }
+    },
+    [onPeriodNavigate, handleRefresh],
+  );
   useEffect(() => {
     if (!hasInitialized.current) {
       hasInitialized.current = true;
@@ -107,7 +124,10 @@ export const DashboardContainer = ({
     useRawLabels,
     onRefresh: handleRefresh,
     onPeriodChange: handlePeriodChange,
+    onPeriodNavigate: handlePeriodNavigate,
     currentPeriod: internalCurrentPeriod,
+    canNavigatePrevious: data.canNavigatePrevious,
+    canNavigateNext: data.canNavigateNext,
     onExit,
     lastUpdated: data.lastUpdated,
     isSyncing: data.isSyncing,

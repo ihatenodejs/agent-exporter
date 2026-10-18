@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import {readFile} from 'fs/promises';
 import {homedir} from 'os';
@@ -11,12 +11,13 @@ import React from 'react';
 import packageJson from '../package.json';
 import {fillMissingDates} from './core/aggregator';
 import {
+  getAdjacentDateRange,
   getDateRangeDescription,
   getDateRangeForPeriod,
-  isValidDateString,
   validateAndResolveDateRange,
   type TimePeriod,
 } from './core/date-utils';
+import {isHarnessInstalled} from './core/harness-availability';
 import {computeUsageSummary, type UsageSummary} from './core/statistics';
 import {DatabaseManager} from './database/manager';
 import {initializeDatabase} from './database/schema';
@@ -272,7 +273,9 @@ program
       }
 
       for (const name of disabledHarnesses) {
-        logDisabledHarnessWarning(name, options.db);
+        if (isHarnessInstalled(name)) {
+          logDisabledHarnessWarning(name, options.db);
+        }
       }
 
       console.log(`Syncing data from ${options.provider}...`);
@@ -432,6 +435,10 @@ program
           console.log(
             `Exporting data for ${getDateRangeDescription(startDate, endDate)}...`,
           );
+        } else if (startDate) {
+          console.log(`Exporting data from ${startDate}...`);
+        } else if (endDate) {
+          console.log(`Exporting data through ${endDate}...`);
         } else {
           console.log('Exporting all usage data...');
         }
@@ -578,7 +585,7 @@ async function displayDashboard(
     const db = initializeDatabase(dbPath);
     dbManager = new DatabaseManager(db);
 
-    let currentPeriod: TimePeriod = 'monthly';
+    let currentPeriod: TimePeriod = 'daily';
     let currentStartDate = startDate;
     let currentEndDate = endDate;
     let isSyncing = false;
@@ -589,11 +596,43 @@ async function displayDashboard(
       const range = getDateRangeForPeriod(period);
       currentStartDate = range.start;
       currentEndDate = range.end;
+      updateTerminalTitle();
+    };
+
+    const navigatePeriod = (direction: 'previous' | 'next'): void => {
+      const range = getAdjacentDateRange(
+        currentPeriod,
+        currentStartDate,
+        direction,
+      );
+      const dateBounds = dbManager?.getMessageDateBounds();
+
+      if (
+        !dateBounds ||
+        (direction === 'previous' && range.end < dateBounds.earliest) ||
+        (direction === 'next' && range.start > dateBounds.latest)
+      ) {
+        return;
+      }
+
+      currentStartDate = range.start;
+      currentEndDate = range.end;
+      updateTerminalTitle();
     };
 
     const getCurrentRangeDescription = (): string => {
       return getDateRangeDescription(currentStartDate, currentEndDate);
     };
+
+    const updateTerminalTitle = (): void => {
+      if (process.stdout.isTTY) {
+        process.stdout.write(
+          `\x1B]0;Agent Exporter Live (${getCurrentRangeDescription()})\x07`,
+        );
+      }
+    };
+
+    updateTerminalTitle();
 
     const syncFromProviders = async (
       refreshIntervalSeconds = 30,
@@ -656,16 +695,24 @@ async function displayDashboard(
       summary: UsageSummary;
       lastUpdated: Date;
       isSyncing: boolean;
+      canNavigatePrevious: boolean;
+      canNavigateNext: boolean;
     }> => {
       if (!dbManager) {
         throw new Error('Database manager not initialized');
       }
 
-      const range = getDateRangeForPeriod(currentPeriod);
-      currentStartDate = range.start;
-      currentEndDate = range.end;
+      updateTerminalTitle();
 
       await syncFromProviders(refreshIntervalSeconds, isManualRefresh);
+
+      const dateBounds = dbManager.getMessageDateBounds();
+      const canNavigatePrevious = Boolean(
+        dateBounds && currentStartDate > dateBounds.earliest,
+      );
+      const canNavigateNext = Boolean(
+        dateBounds && currentEndDate < dateBounds.latest,
+      );
 
       const messages = dbManager.getMessagesByDateRange(
         currentStartDate,
@@ -681,7 +728,13 @@ async function displayDashboard(
         currentEndDate,
       );
       const summary = computeUsageSummary(messages, normalizedDailyUsage);
-      return {summary, lastUpdated: new Date(), isSyncing};
+      return {
+        summary,
+        lastUpdated: new Date(),
+        isSyncing,
+        canNavigatePrevious,
+        canNavigateNext,
+      };
     };
 
     const {DashboardContainer} = await import('./ui/DashboardContainer');
@@ -693,6 +746,7 @@ async function displayDashboard(
         useRawLabels,
         fetchData: fetchDashboardData,
         onPeriodChange: updatePeriod,
+        onPeriodNavigate: navigatePeriod,
         currentPeriod,
         onExit: () => {
           // Clean up will happen in finally block
@@ -718,7 +772,7 @@ program
     'Display raw model identifiers instead of friendly labels',
   )
   .action(async (options: StatsCommandOptions): Promise<void> => {
-    const {start, end} = getDateRangeForPeriod('monthly');
+    const {start, end} = getDateRangeForPeriod('daily');
     await displayDashboard(
       start,
       end,
@@ -823,25 +877,25 @@ program
   )
   .option('--show-hidden', 'Display rows hidden by default in tables')
   .action(async (options: RangeCommandOptions): Promise<void> => {
-    if (!isValidDateString(options.start)) {
-      console.error(
-        `Invalid start date: ${options.start}. Use YYYY-MM-DD format.`,
+    let dateRange;
+    try {
+      dateRange = validateAndResolveDateRange(
+        undefined,
+        options.start,
+        options.end,
       );
-      process.exit(1);
-    }
-    if (!isValidDateString(options.end)) {
-      console.error(`Invalid end date: ${options.end}. Use YYYY-MM-DD format.`);
+    } catch (err) {
+      console.error((err as Error).message);
       process.exit(1);
     }
 
     await displayStats(
-      options.start,
-      options.end,
+      dateRange.startDate,
+      dateRange.endDate,
       options.db,
       'Custom Range',
       Boolean(options.useRawLabels),
       Boolean(options.showHidden),
     );
   });
-
 program.parse();

@@ -1,4 +1,6 @@
 import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+dayjs.extend(customParseFormat);
 
 export interface DateRange {
   start: string;
@@ -85,6 +87,49 @@ export function getDateRangeForPeriod(period: TimePeriod): DateRange {
 }
 
 /**
+ * Get the preceding or following calendar period containing a date range.
+ */
+export function getAdjacentDateRange(
+  period: TimePeriod,
+  startDate: string,
+  direction: 'previous' | 'next',
+): DateRange {
+  const referenceDate = dayjs(startDate, 'YYYY-MM-DD', true);
+  if (!referenceDate.isValid()) {
+    throw new Error(`Invalid start date: ${startDate}. Use YYYY-MM-DD format.`);
+  }
+
+  const adjacentReferenceDate = referenceDate.add(
+    direction === 'previous' ? -1 : 1,
+    period === 'daily'
+      ? 'day'
+      : (period.slice(0, -2) as 'week' | 'month' | 'year'),
+  );
+
+  switch (period) {
+    case 'daily':
+      return {
+        start: adjacentReferenceDate.format('YYYY-MM-DD'),
+        end: adjacentReferenceDate.format('YYYY-MM-DD'),
+      };
+    case 'weekly':
+      return {
+        start: adjacentReferenceDate.startOf('week').format('YYYY-MM-DD'),
+        end: adjacentReferenceDate.endOf('week').format('YYYY-MM-DD'),
+      };
+    case 'monthly':
+      return {
+        start: adjacentReferenceDate.startOf('month').format('YYYY-MM-DD'),
+        end: adjacentReferenceDate.endOf('month').format('YYYY-MM-DD'),
+      };
+    case 'yearly':
+      return {
+        start: adjacentReferenceDate.startOf('year').format('YYYY-MM-DD'),
+        end: adjacentReferenceDate.endOf('year').format('YYYY-MM-DD'),
+      };
+  }
+}
+/**
  * Validate a date string in YYYY-MM-DD format
  */
 export function isValidDateString(dateStr: string): boolean {
@@ -98,6 +143,16 @@ export function getDateRangeDescription(
   startDate: string,
   endDate: string,
 ): string {
+  if (startDate && !endDate) {
+    return `from ${dayjs(startDate).format('MMM D, YYYY')}`;
+  }
+  if (!startDate && endDate) {
+    return `through ${dayjs(endDate).format('MMM D, YYYY')}`;
+  }
+  if (!startDate && !endDate) {
+    return 'all time';
+  }
+
   const start = dayjs(startDate);
   const end = dayjs(endDate);
 
@@ -147,17 +202,30 @@ export function validateAndResolveDateRange(
     return {startDate: range.start, endDate: range.end};
   }
 
-  if (startDate && endDate) {
+  let resolvedStart = '';
+  let resolvedEnd = '';
+
+  if (startDate !== undefined) {
     if (!isValidDateString(startDate)) {
       throw new Error(
         `Invalid start date: ${startDate}. Use YYYY-MM-DD format.`,
       );
     }
+    resolvedStart = startDate;
+  }
+
+  if (endDate !== undefined) {
     if (!isValidDateString(endDate)) {
       throw new Error(`Invalid end date: ${endDate}. Use YYYY-MM-DD format.`);
     }
-    return {startDate, endDate};
+    resolvedEnd = endDate;
   }
 
-  return {startDate: '', endDate: ''};
+  if (resolvedStart && resolvedEnd && resolvedStart > resolvedEnd) {
+    throw new Error(
+      `Start date (${resolvedStart}) must be on or before end date (${resolvedEnd}).`,
+    );
+  }
+
+  return {startDate: resolvedStart, endDate: resolvedEnd};
 }

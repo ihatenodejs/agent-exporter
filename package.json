@@ -1,14 +1,18 @@
 {
   "name": "agent-exporter",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Export usage statistics from various harnesses",
-  "main": "dist/cli.js",
   "type": "module",
   "bin": {
-    "agent-exporter": "./dist/agent-exporter"
+    "agent-exporter": "./src/cli.ts"
   },
   "files": [
-    "dist",
+    "src",
+    "!src/**/__tests__",
+    "!src/**/__tests__/**",
+    "!src/**/__fixtures__",
+    "!src/**/__fixtures__/**",
+    "!src/**/*.test.*",
     "README.md",
     "LICENSE"
   ],
@@ -17,13 +21,14 @@
     "dev": "bun run src/cli.ts",
     "test": "bun test",
     "link": "bun link",
-    "start": "bun dist/agent-exporter",
+    "start": "./dist/agent-exporter",
     "lint": "eslint . --max-warnings=0",
     "lint:fix": "eslint . --fix",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc --noEmit",
-    "prepublishOnly": "bun run build"
+    "check": "pre-commit run --all-files && bun run typecheck && bun run test",
+    "package:smoke": "bun run scripts/package-smoke.ts"
   },
   "keywords": [
     "ai",
@@ -54,29 +59,29 @@
     "bun": ">=1.3.14"
   },
   "dependencies": {
-    "@oh-my-pi/pi-catalog": "17.2.4",
-    "@pydantic/genai-prices": "^0.1.1",
-    "chalk": "^6.0.0",
+    "@oh-my-pi/pi-catalog": "18.12.1",
+    "@pydantic/genai-prices": "^0.1.13",
+    "chalk": "^6.0.1",
     "commander": "^15.0.0",
-    "dayjs": "^1.11.19",
-    "ink": "^7.1.1",
-    "react": "^19.2.0",
-    "zod": "^4.1.12"
+    "dayjs": "^1.11.23",
+    "ink": "^8.0.0",
+    "react": "^19.3.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@types/bun": "^1.3.1",
-    "@types/node": "^26.1.2",
-    "@types/react": "^19.2.2",
-    "@typescript-eslint/eslint-plugin": "^8.46.3",
-    "@typescript-eslint/parser": "^8.46.3",
-    "eslint": "^9.39.1",
-    "eslint-import-resolver-typescript": "^4.4.4",
+    "@types/bun": "^1.4.3",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@typescript-eslint/eslint-plugin": "^8.71.2",
+    "@typescript-eslint/parser": "^8.71.2",
+    "eslint": "^9.39.5",
+    "eslint-import-resolver-typescript": "^4.4.5",
     "eslint-plugin-import": "^2.32.0",
-    "eslint-plugin-unicorn": "^72.0.0",
-    "globals": "^17.8.0",
-    "prettier": "^3.6.2",
-    "react-devtools-core": "^7.0.1",
+    "eslint-plugin-unicorn": "^78.0.0",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
+    "react-devtools-core": "^8.0.0",
     "typescript": "^5.9.3",
-    "typescript-eslint": "^8.46.3"
+    "typescript-eslint": "^8.71.2"
   }
 }

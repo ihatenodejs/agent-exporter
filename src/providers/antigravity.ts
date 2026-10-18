@@ -37,6 +37,16 @@ interface Invocation {
 
 const decoder = new TextDecoder();
 
+function isUnavailableDatabase(error: unknown, databasePath: string): boolean {
+  if (!existsSync(databasePath)) return true;
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    error.code === 'SQLITE_CANTOPEN'
+  );
+}
+
 function readVarint(
   data: Uint8Array,
   offset: number,
@@ -272,6 +282,10 @@ export class AntigravityAdapter implements MessagesProviderAdapter {
       join(homedir(), '.gemini/antigravity-cli/conversations');
   }
 
+  protected openDatabase(databasePath: string): Database {
+    return new Database(databasePath, {readonly: true});
+  }
+
   fetchMessages(): Promise<UnifiedMessage[]> {
     if (!existsSync(this.conversationsPath)) {
       return Promise.resolve([]);
@@ -294,10 +308,11 @@ export class AntigravityAdapter implements MessagesProviderAdapter {
 
     for (const databaseName of databaseNames) {
       const databasePath = join(this.conversationsPath, databaseName);
+      if (!existsSync(databasePath)) continue;
       const sessionId = parse(databaseName).name;
       let database: Database | undefined;
       try {
-        database = new Database(databasePath, {readonly: true});
+        database = this.openDatabase(databasePath);
         const genRows = database
           .query<{data: Uint8Array}, []>('SELECT data FROM gen_metadata')
           .all();
@@ -371,6 +386,7 @@ export class AntigravityAdapter implements MessagesProviderAdapter {
           });
         }
       } catch (error: unknown) {
+        if (isUnavailableDatabase(error, databasePath)) continue;
         normalizeAndLogError(
           `to import Antigravity database ${databasePath}`,
           error,

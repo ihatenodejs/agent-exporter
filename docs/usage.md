@@ -29,19 +29,26 @@ agent-exporter sync # `all` is the default for sync
 
 By default, data is stored in `~/.agent-exporter.db`.
 
-### Ingest Usage Data from CCUsage Export
+### Ingest Usage Data from CCUsage or Grouped JSON Export
 
-Import usage data from a CCUsage JSON export file:
+Import usage data from a CCUsage or grouped JSON export file:
 
 ```bash
+# Ingest into default database (~/.agent-exporter.db)
 agent-exporter ingest cc.json
+
+# Ingest into custom database path
+agent-exporter ingest cc.json --db ./custom.db
+
+# Ingest into a fresh database for clean historical recovery
+agent-exporter ingest usage-export-0001-01-01-to-9999-12-31.json --db ./fresh.db
 ```
 
-This command reads a CCUsage export file and imports all usage entries into the local database. Useful for:
+This command reads either a plain CCUsage export file or a provider-grouped JSON export file and imports usage entries into the local database:
 
-- Migrating data from another instance
-- Importing historical usage data
-- Manual data backup and restore
+- **Grouped JSON exports** (`agent-exporter json`): Provider identity is preserved during ingest using deterministic grouped record identifiers. Repeated ingest is stable and idempotent (`INSERT OR REPLACE`).
+- **Plain CCUsage exports** (`agent-exporter export ccusage`): Provider separation is not preserved; provider identity is inferred from model names via legacy heuristics (`detectProviderFromModel`).
+- **Fresh database recovery**: Corrected grouped imports do not delete ambiguous legacy rows from earlier, lossy grouped imports. If previous imports collapsed multiple providers under legacy identifiers, import your original grouped export into a fresh database (`--db <path>`) for clean recovery. Reimporting the same generated identifiers replaces their existing records.
 
 Options:
 
@@ -128,12 +135,14 @@ Options:
 
 ### Export Data in JSON Format
 
-Export usage data grouped by provider in JSON format:
+Export usage data grouped by provider in JSON format. The exported JSON is keyed by provider name at a single level (`Record<string, CCUsageExport>`), preserving provider separation.
 
 #### Output to Console
 
+By default, `agent-exporter json` prints formatted JSON directly to stdout:
+
 ```bash
-# Export all data to console
+# Export all stored history to console (no cutoff)
 agent-exporter json
 
 # Export with time period
@@ -142,34 +151,69 @@ agent-exporter json --period weekly
 agent-exporter json --period monthly
 agent-exporter json --period yearly
 
-# Export with custom date range
+# Export with bounded date range
 agent-exporter json --start 2025-09-01 --end 2025-10-30
+
+# Export with lone lower bound (from date through all future history)
+agent-exporter json --start 2025-09-01
+
+# Export with lone upper bound (from earliest history through date)
+agent-exporter json --end 2025-10-30
+
+# Export from custom database
+agent-exporter json --db ./custom.db
 ```
 
 #### Output to File
 
+Use `-o, --output <path>` to write the JSON export to a file instead of stdout:
+
 ```bash
-# Export to specific file
+# Export all history to a specific file
 agent-exporter json --output my-usage.json
+
+# Export all history from a custom database to file
+agent-exporter json --output my-usage.json --db ./custom.db
 
 # Export today's data to file
 agent-exporter json --period daily --output today.json
 
 # Export with custom date range to file
 agent-exporter json --start 2025-09-01 --end 2025-10-30 --output my-usage.json
+
+# Export with lone lower bound to file
+agent-exporter json --start 2025-09-01 --output from-sept.json --db ./custom.db
 ```
 
 Options:
 
-- `-p, --period <period>` - Time period: daily, weekly, monthly, or yearly
-- `-s, --start <date>` - Start date (YYYY-MM-DD) - alternative to --period
-- `-e, --end <date>` - End date (YYYY-MM-DD) - alternative to --period
+- `-p, --period <period>` - Time period: `daily`, `weekly`, `monthly`, or `yearly`
+- `-s, --start <date>` - Start date (`YYYY-MM-DD`)
+- `-e, --end <date>` - End date (`YYYY-MM-DD`)
 - `-o, --output <path>` - Output file path (optional, outputs to console if not specified)
 - `-d, --db <path>` - Custom database path
 
 ### Export Data in CCUsage Format
 
-Export usage data to a file in CCUsage format:
+Export usage data to a file in plain CCUsage format (`{ daily, totals }`). Usage is aggregated across all providers into unified totals.
+
+#### Export All Data
+
+When no date bounds or periods are specified, all stored history is exported (no rolling window cutoff):
+
+```bash
+# Export all data (auto-generates default sentinel filename)
+agent-exporter export ccusage
+
+# Export all data to specific file
+agent-exporter export ccusage --output all-usage.json
+
+# Export all data from custom database to specific file
+agent-exporter export ccusage --output all-usage.json --db ./custom.db
+
+# Export all data from custom database with auto-generated sentinel filename
+agent-exporter export ccusage --db ./custom.db
+```
 
 #### Export with Time Period
 
@@ -187,24 +231,49 @@ agent-exporter export ccusage --period monthly --output month.json
 agent-exporter export ccusage --period yearly --output year.json
 ```
 
-#### Export with Custom Date Range
+#### Export with Custom Date Range and Open Bounds
 
 ```bash
+# Export with explicit date range
 agent-exporter export ccusage --start 2025-09-01 --end 2025-10-30 --output my-usage.json
-```
 
-#### Export All Data
+# Export with lone lower bound (open upper bound)
+agent-exporter export ccusage --start 2025-09-01 --output from-sept.json
 
-```bash
-agent-exporter export ccusage --output all-usage.json
+# Export with lone upper bound (open lower bound)
+agent-exporter export ccusage --end 2025-10-30 --output through-oct.json
+
+# Export with custom date range and custom database
+agent-exporter export ccusage --start 2025-09-01 --end 2025-10-30 --output range.json --db ./custom.db
 ```
 
 Options:
 
-- `-p, --period <period>` - Time period: daily, weekly, monthly, or yearly
-- `-s, --start <date>` - Start date (YYYY-MM-DD) - alternative to --period
-- `-e, --end <date>` - End date (YYYY-MM-DD) - alternative to --period
+- `-p, --period <period>` - Time period: `daily`, `weekly`, `monthly`, or `yearly`
+- `-s, --start <date>` - Start date (`YYYY-MM-DD`)
+- `-e, --end <date>` - End date (`YYYY-MM-DD`)
 - `-o, --output <path>` - Output file path (optional, auto-generated if not specified)
 - `-d, --db <path>` - Custom database path
 
-**Note:** Use either `--period` or both `--start` and `--end`, not both together. If neither is specified, all data will be exported.
+### Date Filtering and Filename Semantics
+
+Both `agent-exporter json` and `agent-exporter export ccusage` adhere to consistent date filtering and filename generation contracts:
+
+- **No default cutoff**: If neither `--period`, `--start`, nor `--end` is specified, all stored history is exported. There is no silent rolling window or 30-day cutoff.
+- **Inclusive and open bounds**:
+  - `--start <date>` and `--end <date>` define an inclusive ISO date range (`YYYY-MM-DD`). Equal dates (e.g. `--start 2025-09-01 --end 2025-09-01`) export a single day.
+  - Lone lower bound (`--start` without `--end`): exports from the start date through all future stored history (open upper bound).
+  - Lone upper bound (`--end` without `--start`): exports from earliest stored history through the end date (open lower bound).
+- **Strict date validation**:
+  - Invalid date formats (not `YYYY-MM-DD`), non-existent calendar dates, and empty date strings are strictly rejected with an error message and non-zero exit code.
+  - Reversed date ranges (where `--start` is chronologically after `--end`) are strictly rejected with an error message and non-zero exit code.
+- **Calendar period precedence**:
+  - If `--period` is provided alongside `--start` or `--end`, `--period` takes precedence to compute the date range rather than causing a mutual exclusion error.
+- **Default sentinel filenames**:
+  - When writing to a file without specifying `-o, --output <path>` (supported by `export ccusage`, and in programmatic exporter APIs), the default filename follows the pattern `usage-export-${start}-to-${end}.json`.
+  - Unbounded bounds resolve to explicit ISO query sentinels: `0001-01-01` for unbounded start and `9999-12-31` for unbounded end.
+  - Examples:
+    - All history (no bounds): `usage-export-0001-01-01-to-9999-12-31.json`
+    - Lone start `--start 2025-09-01`: `usage-export-2025-09-01-to-9999-12-31.json`
+    - Lone end `--end 2025-10-30`: `usage-export-0001-01-01-to-2025-10-30.json`
+    - Explicit range `--start 2025-09-01 --end 2025-10-30`: `usage-export-2025-09-01-to-2025-10-30.json`

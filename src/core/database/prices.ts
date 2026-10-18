@@ -127,13 +127,30 @@ export function findFallbackPrice(
   );
   if (patternMatch) return patternMatch;
 
+  if (!modelName.trim()) {
+    return null;
+  }
+
   const lowerModelName = modelName.toLowerCase();
-  const partialMatch = FALLBACK_PRICES.find(
-    (p) =>
-      p.model.toLowerCase().includes(lowerModelName) ||
-      lowerModelName.includes(p.model.toLowerCase()),
+  let longestMatch: FallbackModelPrice | null = null;
+  let longestLength = -1;
+
+  for (const price of FALLBACK_PRICES) {
+    const fallbackModelLower = price.model.toLowerCase();
+    if (lowerModelName.includes(fallbackModelLower)) {
+      if (fallbackModelLower.length > longestLength) {
+        longestMatch = price;
+        longestLength = fallbackModelLower.length;
+      }
+    }
+  }
+
+  if (longestMatch) return longestMatch;
+
+  const reverseMatch = FALLBACK_PRICES.find((p) =>
+    p.model.toLowerCase().includes(lowerModelName),
   );
-  if (partialMatch) return partialMatch;
+  if (reverseMatch) return reverseMatch;
 
   return null;
 }

@@ -1,18 +1,13 @@
 import chalk from 'chalk';
-import {Box, Text, useApp, useInput, useStdout} from 'ink';
+import {Box, Text, useApp, useInput, useWindowSize} from 'ink';
 import {useState, useEffect, useCallback, useMemo, useRef} from 'react';
 
-import {
-  formatCount,
-  formatTokens,
-  formatCurrency,
-  integerFormatter,
-  decimalFormatter,
-  currencyFormatter,
-} from './formatters';
+import {formatCount, formatTokens, formatCurrency} from './formatters';
+import {PieChart} from './PieChart';
 import {Table, type TableRow} from './Table';
 import {getModelDisplayName} from '../core/database/model-labels';
 
+import type {PieChartSlice} from './PieChart';
 import type {TimePeriod} from '../core/date-utils';
 import type {UsageSummary} from '../core/statistics';
 import type {ReactElement} from 'react';
@@ -30,19 +25,19 @@ const LAYOUT_OPTIONS: LayoutOption[] = [
   {
     key: '3x1',
     minWidth: 171,
-    minHeight: 40,
+    minHeight: 50,
     label: '3x1 (wide)',
   },
   {
     key: '2x2',
     minWidth: 119,
-    minHeight: 32,
+    minHeight: 42,
     label: '2x2 (balanced)',
   },
   {
     key: '1x3',
     minWidth: 72,
-    minHeight: 50,
+    minHeight: 62,
     label: '1x3 (tall)',
   },
 ];
@@ -76,6 +71,9 @@ interface DashboardProps {
     refreshIntervalSeconds?: number,
   ) => void;
   readonly onPeriodChange?: (period: TimePeriod) => void;
+  readonly onPeriodNavigate?: (direction: 'previous' | 'next') => void;
+  readonly canNavigatePrevious?: boolean;
+  readonly canNavigateNext?: boolean;
   readonly currentPeriod?: TimePeriod;
   readonly onExit: () => void;
   readonly lastUpdated: Date;
@@ -89,6 +87,9 @@ export const Dashboard = ({
   useRawLabels = false,
   onRefresh,
   onPeriodChange,
+  onPeriodNavigate,
+  canNavigatePrevious = false,
+  canNavigateNext = false,
   currentPeriod = 'monthly',
   onExit,
   lastUpdated,
@@ -101,12 +102,9 @@ export const Dashboard = ({
   const [timeUntilRefresh, setTimeUntilRefresh] = useState(refreshInterval);
   const timeUntilRefreshRef = useRef(timeUntilRefresh);
   const [showHelp, setShowHelp] = useState(false);
-  const {stdout} = useStdout();
-  const [terminalSize, setTerminalSize] = useState(() => ({
-    width: stdout.columns || DEFAULT_LAYOUT.minWidth,
-    height: stdout.rows || DEFAULT_LAYOUT.minHeight,
-  }));
-  const {width: terminalWidth, height: terminalHeight} = terminalSize;
+  const {columns, rows} = useWindowSize();
+  const terminalWidth = columns > 0 ? columns : DEFAULT_LAYOUT.minWidth;
+  const terminalHeight = rows > 0 ? rows : DEFAULT_LAYOUT.minHeight;
 
   const layoutStates = useMemo(() => {
     return LAYOUT_OPTIONS.map((option) => {
@@ -145,6 +143,21 @@ export const Dashboard = ({
     onPeriodChange(nextPeriod);
   }, [onPeriodChange, currentPeriod]);
 
+  const handlePeriodNavigate = useCallback(
+    (direction: 'previous' | 'next') => {
+      if (
+        !onPeriodNavigate ||
+        (direction === 'previous' && !canNavigatePrevious) ||
+        (direction === 'next' && !canNavigateNext)
+      ) {
+        return;
+      }
+
+      onPeriodNavigate(direction);
+    },
+    [onPeriodNavigate, canNavigatePrevious, canNavigateNext],
+  );
+
   useInput((input, key) => {
     if (key.ctrl && input === 'c') {
       onExit();
@@ -177,26 +190,14 @@ export const Dashboard = ({
       setTimeUntilRefresh(newInterval);
     } else if (input === 'p') {
       handlePeriodToggle();
+    } else if (key.leftArrow) {
+      handlePeriodNavigate('previous');
+    } else if (key.rightArrow) {
+      handlePeriodNavigate('next');
     } else if (input === '?') {
       setShowHelp(true);
     }
   });
-
-  useEffect(() => {
-    const handleResize = (): void => {
-      setTerminalSize({
-        width: stdout.columns || DEFAULT_LAYOUT.minWidth,
-        height: stdout.rows || DEFAULT_LAYOUT.minHeight,
-      });
-    };
-
-    stdout.on('resize', handleResize);
-
-    return () => {
-      stdout.off('resize', handleResize);
-      stdout.removeListener('resize', handleResize);
-    };
-  }, [stdout]);
 
   useEffect(() => {
     if (!autoRefresh || !hasActiveLayout) {
@@ -227,12 +228,8 @@ export const Dashboard = ({
     summary.modelRows.length > 0;
   const isDailyPeriod = currentPeriod === 'daily';
   const miniTableGap = isWideLayout ? 2 : 1;
-  const quickStatsGap = isWideLayout ? 2 : 1;
 
-  const headerCard = (
-    withMarginBottom: boolean,
-    includeTotals: boolean,
-  ): ReactElement => (
+  const headerCard = (withMarginBottom: boolean): ReactElement => (
     <Box
       flexDirection="column"
       borderStyle="round"
@@ -283,46 +280,11 @@ export const Dashboard = ({
           Next refresh: {autoRefresh ? `${timeUntilRefresh}s` : 'paused'}
         </Text>
       </Box>
-      {includeTotals ? (
-        <Box
-          flexDirection="column"
-          marginTop={1}
-        >
-          <Text
-            color="greenBright"
-            bold
-          >
-            {`Total Cost: ${currencyFormatter.format(summary.totals.totalCost)}`}
-          </Text>
-          <Text
-            color="cyan"
-            bold
-          >
-            {`Total Tokens: ${integerFormatter.format(summary.totals.totalTokens)}`}
-          </Text>
-          {!isDailyPeriod ? (
-            <>
-              <Text
-                color="yellowBright"
-                bold
-              >
-                {`Avg Daily Cost: ${currencyFormatter.format(summary.averageDailyCost)}`}
-              </Text>
-              <Text
-                color="magenta"
-                bold
-              >
-                {`Avg Daily Tokens: ${decimalFormatter.format(summary.averageDailyTokens)}`}
-              </Text>
-            </>
-          ) : null}
-        </Box>
-      ) : null}
     </Box>
   );
 
-  const headerPanelGrid = headerCard(false, true);
-  const headerPanelStacked = headerCard(false, true);
+  const headerPanelGrid = headerCard(false);
+  const headerPanelStacked = headerCard(false);
 
   const controlsCard = (withMarginBottom: boolean): ReactElement => (
     <Box
@@ -361,8 +323,15 @@ export const Dashboard = ({
           {chalk.bold(
             currentPeriod.charAt(0).toUpperCase() + currentPeriod.slice(1),
           )}
+          {'   '}
+          {canNavigatePrevious && canNavigateNext
+            ? `${chalk.bold('<-/->')} Prev/Next period`
+            : canNavigatePrevious
+              ? `${chalk.bold('<-')} Prev period`
+              : canNavigateNext
+                ? `${chalk.bold('->')} Next period`
+                : 'No adjacent periods available'}
         </Text>
-        <Text color="white">{chalk.bold('?')} Toggle help</Text>
         <Text color="red">{chalk.bold('Ctrl+C')} Exit</Text>
       </Box>
     </Box>
@@ -407,6 +376,9 @@ export const Dashboard = ({
           <Text color="blueBright">
             {chalk.bold('p')} Cycle time period (daily → weekly → monthly →
             yearly)
+          </Text>
+          <Text color="blueBright">
+            {chalk.bold('<-')} Previous period / {chalk.bold('->')} Next period
           </Text>
           <Text color="white">
             {chalk.bold('?')} Show or hide this help view
@@ -490,6 +462,34 @@ export const Dashboard = ({
         };
       });
   }, [summary, useRawLabels]);
+
+  const providerChartSlices = useMemo<PieChartSlice[]>(
+    () =>
+      summary.providerRows.map((row) => ({
+        id: row.name,
+        label: row.name,
+        value: row.totalCost,
+      })),
+    [summary.providerRows],
+  );
+
+  const modelChartSlices = useMemo<PieChartSlice[]>(
+    () =>
+      summary.modelRows.map((row) => ({
+        id: row.name,
+        label: useRawLabels ? row.name : getModelDisplayName(row.name),
+        value: row.totalCost,
+      })),
+    [summary.modelRows, useRawLabels],
+  );
+
+  const showProviderChart = summary.providerRows.length >= 2;
+  const chartContentWidth = Math.max(1, terminalWidth - 2);
+  const pairedChartWidth = Math.max(2, chartContentWidth - miniTableGap);
+  const providerChartWidth = Math.floor(pairedChartWidth / 2);
+  const modelChartWidth = showProviderChart
+    ? pairedChartWidth - providerChartWidth
+    : providerChartWidth;
 
   const miniTableSections: MiniTableSection[] = [
     {
@@ -729,7 +729,7 @@ export const Dashboard = ({
             flexGrow={1}
             marginRight={miniTableGap}
           >
-            {headerCard(false, false)}
+            {headerCard(false)}
           </Box>
           <Box
             flexDirection="column"
@@ -740,60 +740,47 @@ export const Dashboard = ({
         </Box>
       ) : null}
 
-      {/* Quick Stats */}
-      {isWideLayout ? (
-        <Box
-          flexDirection="row"
-          marginBottom={1}
-        >
-          <Box
-            flexDirection="column"
-            marginRight={quickStatsGap}
-            flexGrow={1}
-          >
-            <Text
-              key="total-cost-main"
-              color="greenBright"
-              bold
-            >
-              {`Total Cost: ${currencyFormatter.format(summary.totals.totalCost)}`}
-            </Text>
-            {!isDailyPeriod && (
-              <Text
-                key="avg-daily-cost-main"
-                color="yellowBright"
-                bold
-              >
-                {`Avg Daily Cost: ${currencyFormatter.format(summary.averageDailyCost)}`}
-              </Text>
-            )}
-          </Box>
-          <Box
-            flexDirection="column"
-            flexGrow={1}
-          >
-            <Text
-              key="total-tokens-main"
-              color="cyan"
-              bold
-            >
-              {`Total Tokens: ${integerFormatter.format(summary.totals.totalTokens)}`}
-            </Text>
-            {!isDailyPeriod && (
-              <Text
-                key="avg-daily-tokens-main"
-                color="magenta"
-                bold
-              >
-                {`Avg Daily Tokens: ${decimalFormatter.format(summary.averageDailyTokens)}`}
-              </Text>
-            )}
-          </Box>
-        </Box>
-      ) : null}
-
       {/* Mini Tables */}
       {miniTablesContent}
+
+      {/* Cost Charts */}
+      <Box
+        flexDirection="row"
+        width={chartContentWidth}
+        marginBottom={1}
+        overflow="hidden"
+      >
+        <Box
+          key="providers-chart"
+          display={showProviderChart ? 'flex' : 'none'}
+          width={providerChartWidth}
+          flexShrink={0}
+          marginRight={showProviderChart ? miniTableGap : 0}
+          overflow="hidden"
+        >
+          <PieChart
+            slices={providerChartSlices}
+            width={providerChartWidth}
+            title="Providers"
+            showLegend
+            showPercentages
+          />
+        </Box>
+        <Box
+          key="models-chart"
+          width={modelChartWidth}
+          flexShrink={0}
+          overflow="hidden"
+        >
+          <PieChart
+            slices={modelChartSlices}
+            width={modelChartWidth}
+            title="Models"
+            showLegend
+            showPercentages
+          />
+        </Box>
+      </Box>
 
       {!hasUsage ? (
         <Box marginTop={1}>
