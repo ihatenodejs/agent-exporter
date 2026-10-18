@@ -32,16 +32,41 @@ export function generateCCUsageExport(dailyUsage: DailyUsage[]): CCUsageExport {
   };
 }
 
+export const UNBOUNDED_START = '0001-01-01';
+export const UNBOUNDED_END = '9999-12-31';
+
+/**
+ * Resolves optional start and end date bounds into inclusive ISO date strings (YYYY-MM-DD).
+ *
+ * When a date bound is omitted (undefined or empty string), it resolves to an explicit ISO query sentinel:
+ * - Omitted start date resolves to UNBOUNDED_START ('0001-01-01')
+ * - Omitted end date resolves to UNBOUNDED_END ('9999-12-31')
+ *
+ * This provides inclusive unbounded semantics matching all stored records across that boundary,
+ * and allows exporters to construct literal sentinel-based filenames (e.g. usage-export-0001-01-01-to-9999-12-31.json)
+ * without deriving defaults from the current clock.
+ */
 export function generateDateRange(
   startDate?: string,
   endDate?: string,
 ): {start: string; end: string} {
-  const end = endDate ? dayjs(endDate) : dayjs();
-  const start = startDate ? dayjs(startDate) : end.subtract(30, 'day');
+  const start =
+    startDate && startDate.trim() !== ''
+      ? /^\d{4}-\d{2}-\d{2}$/.test(startDate)
+        ? startDate
+        : dayjs(startDate).format('YYYY-MM-DD')
+      : UNBOUNDED_START;
+
+  const end =
+    endDate && endDate.trim() !== ''
+      ? /^\d{4}-\d{2}-\d{2}$/.test(endDate)
+        ? endDate
+        : dayjs(endDate).format('YYYY-MM-DD')
+      : UNBOUNDED_END;
 
   return {
-    start: start.format('YYYY-MM-DD'),
-    end: end.format('YYYY-MM-DD'),
+    start,
+    end,
   };
 }
 

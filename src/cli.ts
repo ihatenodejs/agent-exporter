@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
 import {readFile} from 'fs/promises';
 import {homedir} from 'os';
@@ -14,7 +14,6 @@ import {
   getAdjacentDateRange,
   getDateRangeDescription,
   getDateRangeForPeriod,
-  isValidDateString,
   validateAndResolveDateRange,
   type TimePeriod,
 } from './core/date-utils';
@@ -436,6 +435,10 @@ program
           console.log(
             `Exporting data for ${getDateRangeDescription(startDate, endDate)}...`,
           );
+        } else if (startDate) {
+          console.log(`Exporting data from ${startDate}...`);
+        } else if (endDate) {
+          console.log(`Exporting data through ${endDate}...`);
         } else {
           console.log('Exporting all usage data...');
         }
@@ -874,25 +877,25 @@ program
   )
   .option('--show-hidden', 'Display rows hidden by default in tables')
   .action(async (options: RangeCommandOptions): Promise<void> => {
-    if (!isValidDateString(options.start)) {
-      console.error(
-        `Invalid start date: ${options.start}. Use YYYY-MM-DD format.`,
+    let dateRange;
+    try {
+      dateRange = validateAndResolveDateRange(
+        undefined,
+        options.start,
+        options.end,
       );
-      process.exit(1);
-    }
-    if (!isValidDateString(options.end)) {
-      console.error(`Invalid end date: ${options.end}. Use YYYY-MM-DD format.`);
+    } catch (err) {
+      console.error((err as Error).message);
       process.exit(1);
     }
 
     await displayStats(
-      options.start,
-      options.end,
+      dateRange.startDate,
+      dateRange.endDate,
       options.db,
       'Custom Range',
       Boolean(options.useRawLabels),
       Boolean(options.showHidden),
     );
   });
-
 program.parse();

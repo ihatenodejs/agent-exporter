@@ -85,17 +85,24 @@ export const detectProviderFromModel = (modelName: string): string => {
   return 'ccusage';
 };
 
+interface CollectedDailyEntry {
+  entry: z.infer<typeof CCUsageDailySchema>;
+  provider?: string;
+}
+
 /**
  * Collects all daily entries from CCUsage export data
  * Extracts entries from both the top-level daily array and nested sections
  */
 function collectDailyEntries(
   ccusageData: CCUsageExportData,
-): z.infer<typeof CCUsageDailySchema>[] {
-  const dailyEntries: z.infer<typeof CCUsageDailySchema>[] = [];
+): CollectedDailyEntry[] {
+  const dailyEntries: CollectedDailyEntry[] = [];
 
   if (ccusageData.daily) {
-    dailyEntries.push(...ccusageData.daily);
+    for (const entry of ccusageData.daily) {
+      dailyEntries.push({entry});
+    }
   }
 
   for (const [key, value] of Object.entries(ccusageData)) {
@@ -105,7 +112,9 @@ function collectDailyEntries(
 
     const section = CCUsageSectionSchema.safeParse(value);
     if (section.success && section.data.daily) {
-      dailyEntries.push(...section.data.daily);
+      for (const entry of section.data.daily) {
+        dailyEntries.push({entry, provider: key});
+      }
     }
   }
 
@@ -142,15 +151,22 @@ export const convertCcUsageExportToMessages = (
   const unifiedMessages: UnifiedMessage[] = [];
   const dailyEntries = collectDailyEntries(ccusageData);
 
-  for (const dailyEntry of dailyEntries) {
+  for (const {entry: dailyEntry, provider: groupProvider} of dailyEntries) {
     const breakdowns = dailyEntry.modelBreakdowns;
     for (let i = 0; i < breakdowns.length; i++) {
       const breakdown = breakdowns[i];
 
-      const messageId = `ccusage-${dailyEntry.date}-${breakdown.modelName}-${i}`;
-      const sessionId = `ccusage-session-${dailyEntry.date}`;
+      const provider =
+        groupProvider ?? detectProviderFromModel(breakdown.modelName);
+      const messageId =
+        groupProvider !== undefined
+          ? `ccusage-grouped:${JSON.stringify([groupProvider, dailyEntry.date, breakdown.modelName, i])}`
+          : `ccusage-${dailyEntry.date}-${breakdown.modelName}-${i}`;
+      const sessionId =
+        groupProvider !== undefined
+          ? `ccusage-session-grouped:${JSON.stringify([groupProvider, dailyEntry.date])}`
+          : `ccusage-session-${dailyEntry.date}`;
       const timestamp = dayjs(`${dailyEntry.date} 12:00:00`).valueOf();
-      const provider = detectProviderFromModel(breakdown.modelName);
 
       const cost = calculateCostOrUseFallback(
         breakdown.cost,
@@ -188,10 +204,11 @@ export const convertCcUsageExportToUsageEntries = (
   const usageEntries: UsageEntry[] = [];
   const dailyEntries = collectDailyEntries(ccusageData);
 
-  for (const dailyEntry of dailyEntries) {
+  for (const {entry: dailyEntry, provider: groupProvider} of dailyEntries) {
     const breakdowns = dailyEntry.modelBreakdowns;
     for (const breakdown of breakdowns) {
-      const provider = detectProviderFromModel(breakdown.modelName);
+      const provider =
+        groupProvider ?? detectProviderFromModel(breakdown.modelName);
 
       const cost = calculateCostOrUseFallback(
         breakdown.cost,

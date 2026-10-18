@@ -143,6 +143,16 @@ export function getDateRangeDescription(
   startDate: string,
   endDate: string,
 ): string {
+  if (startDate && !endDate) {
+    return `from ${dayjs(startDate).format('MMM D, YYYY')}`;
+  }
+  if (!startDate && endDate) {
+    return `through ${dayjs(endDate).format('MMM D, YYYY')}`;
+  }
+  if (!startDate && !endDate) {
+    return 'all time';
+  }
+
   const start = dayjs(startDate);
   const end = dayjs(endDate);
 
@@ -192,17 +202,30 @@ export function validateAndResolveDateRange(
     return {startDate: range.start, endDate: range.end};
   }
 
-  if (startDate && endDate) {
+  let resolvedStart = '';
+  let resolvedEnd = '';
+
+  if (startDate !== undefined) {
     if (!isValidDateString(startDate)) {
       throw new Error(
         `Invalid start date: ${startDate}. Use YYYY-MM-DD format.`,
       );
     }
+    resolvedStart = startDate;
+  }
+
+  if (endDate !== undefined) {
     if (!isValidDateString(endDate)) {
       throw new Error(`Invalid end date: ${endDate}. Use YYYY-MM-DD format.`);
     }
-    return {startDate, endDate};
+    resolvedEnd = endDate;
   }
 
-  return {startDate: '', endDate: ''};
+  if (resolvedStart && resolvedEnd && resolvedStart > resolvedEnd) {
+    throw new Error(
+      `Start date (${resolvedStart}) must be on or before end date (${resolvedEnd}).`,
+    );
+  }
+
+  return {startDate: resolvedStart, endDate: resolvedEnd};
 }
